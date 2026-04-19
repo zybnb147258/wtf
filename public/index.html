@@ -332,7 +332,7 @@
 <div id="profileModal" class="profile-modal"><div class="profile-container" id="profileContent"></div></div>
 
 <script>
-// ==================== 修复版 ====================
+// ==================== 完整修复版 ====================
 const API_BASE = '';
 let currentUser = null, currentRole = null;
 let currentRoom = "general";
@@ -358,6 +358,15 @@ function getBeautyBadgeHtml(userId, isBeauty) {
     return "";
 }
 
+function checkAccess() {
+    if (!currentUser) {
+        showToast("请先登录账号", true);
+        document.getElementById('loginModal').classList.add('active');
+        return false;
+    }
+    return true;
+}
+
 async function checkServerStatus() {
     try {
         const res = await fetch('/api/reviews');
@@ -375,6 +384,7 @@ async function checkServerStatus() {
 }
 
 async function renderReviews() {
+    if (!checkAccess()) return;
     try {
         const res = await fetch('/api/reviews');
         const reviews = await res.json();
@@ -384,7 +394,7 @@ async function renderReviews() {
 }
 
 async function submitReview() {
-    if (!currentUser) { showToast("请先登录", true); return; }
+    if (!checkAccess()) return;
     let content = document.getElementById('newReviewContent').value.trim();
     let rating = parseInt(document.getElementById('newReviewRating').value);
     if (!content) { showToast("请输入评价内容", true); return; }
@@ -406,12 +416,9 @@ window.deleteReview = async (id) => {
 };
 
 async function renderGames() {
+    if (!checkAccess()) return;
     let container = document.getElementById('gamesContainer');
     if (!container) return;
-    if (!currentUser) {
-        container.innerHTML = `<div class="card"><p>需要登录才能访问游戏库</p><button class="btn btn-secondary" onclick="document.getElementById('loginModal').classList.add('active')">立即登录/注册</button></div>`;
-        return;
-    }
     try {
         const res = await fetch('/api/games');
         let games = await res.json();
@@ -422,6 +429,7 @@ async function renderGames() {
 }
 
 async function renderChats(room) {
+    if (!checkAccess()) return;
     try {
         const res = await fetch(`/api/chats/${room}`);
         let msgs = await res.json();
@@ -442,9 +450,9 @@ async function renderChats(room) {
 }
 
 async function sendChat() {
+    if (!checkAccess()) return;
     let inp = document.getElementById('chatInput');
     if (!inp.value.trim()) return;
-    if (!currentUser) { showToast("请先登录", true); document.getElementById('loginModal').classList.add('active'); return; }
     if (globalMuteEnabled && currentRole !== 'owner') { showToast("系统维护中，聊天功能已关闭", true); return; }
     await fetch('/api/chat', {
         method: 'POST',
@@ -456,6 +464,7 @@ async function sendChat() {
 }
 
 async function renderScripts() {
+    if (!checkAccess()) return;
     try {
         const res = await fetch('/api/scripts');
         let scripts = await res.json();
@@ -464,7 +473,7 @@ async function renderScripts() {
 }
 
 async function uploadScript() {
-    if (!currentUser) { showToast("请先登录", true); return; }
+    if (!checkAccess()) return;
     let name = document.getElementById('scriptName').value.trim();
     let desc = document.getElementById('scriptDesc').value.trim();
     if (!name || !desc) { showToast("请填写脚本名称和描述", true); return; }
@@ -481,16 +490,17 @@ async function uploadScript() {
 }
 
 async function renderWhitelist() {
+    if (!checkAccess()) return;
     try {
         const res = await fetch('/api/whitelist');
         let whitelist = await res.json();
-        // 修复：确保是数组
         if (!Array.isArray(whitelist)) whitelist = [];
         document.getElementById('whitelistUsers').innerHTML = whitelist.map(u => `<span class="tab">${escapeHtml(u)}</span>`).join('');
     } catch(e) { console.error(e); }
 }
 
 async function addToWhitelist() {
+    if (!checkAccess()) return;
     if (currentRole !== 'owner') { showToast("仅管理员可操作", true); return; }
     let name = document.getElementById('whitelistName').value.trim();
     if (!name) { showToast("请输入用户名", true); return; }
@@ -516,14 +526,14 @@ async function login(username, password) {
             // 关闭登录弹窗
             document.getElementById('loginModal').classList.remove('active');
             
-            // 强制切换到评价页面
+            // 切换到评价页面
             document.querySelectorAll('.page-content').forEach(p => p.classList.remove('active-page'));
             document.getElementById('reviewsPage').classList.add('active-page');
             document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active-side'));
             const activeLink = Array.from(document.querySelectorAll('.sidebar-link')).find(l => l.dataset.page === 'reviews');
             if (activeLink) activeLink.classList.add('active-side');
             
-            // 加载所有数据
+            // 刷新数据
             await renderReviews();
             await renderGames();
             await renderChats(currentRoom);
@@ -581,7 +591,6 @@ function logout() {
     currentUser = null; currentRole = null; currentUserData = null; 
     updateSidebarUI(); 
     showToast("已登出", false); 
-    document.getElementById('loginModal').classList.add('active');
     document.querySelectorAll('.page-content').forEach(p => p.classList.remove('active-page'));
     document.getElementById('reviewsPage').classList.add('active-page');
 }
@@ -704,8 +713,15 @@ async function toggleGlobalMute() {
 }
 
 function switchPage(pageId) {
-    if ((pageId === 'games' || pageId === 'whitelist' || pageId === 'executor') && !currentUser) { showToast("请先登录", true); pageId = 'reviews'; }
-    if (pageId === 'admin' && currentRole !== 'owner') { showToast("只有管理员可以访问管理面板", true); pageId = 'reviews'; }
+    if ((pageId === 'games' || pageId === 'whitelist' || pageId === 'executor' || pageId === 'scripts') && !currentUser) { 
+        showToast("请先登录", true); 
+        document.getElementById('loginModal').classList.add('active');
+        return; 
+    }
+    if (pageId === 'admin' && currentRole !== 'owner') { 
+        showToast("只有管理员可以访问管理面板", true); 
+        return; 
+    }
     document.querySelectorAll('.page-content').forEach(p => p.classList.remove('active-page'));
     let target = document.getElementById(pageId + 'Page');
     if (target) target.classList.add('active-page');
@@ -757,13 +773,13 @@ document.querySelectorAll('#chatTabs .tab').forEach(t => {
         renderChats(currentRoom);
     });
 });
-document.getElementById('refreshGamesBtn')?.addEventListener('click', async () => { if (!currentUser) { showToast("请先登录", true); return; } showToast("正在同步...", false); await renderGames(); showToast("同步完成", false); });
+document.getElementById('refreshGamesBtn')?.addEventListener('click', async () => { if (!checkAccess()) return; showToast("正在同步...", false); await renderGames(); showToast("同步完成", false); });
 document.getElementById('uploadScriptBtn')?.addEventListener('click', uploadScript);
 document.getElementById('addWhitelistBtn')?.addEventListener('click', addToWhitelist);
 document.getElementById('submitReviewBtn')?.addEventListener('click', submitReview);
 document.getElementById('executeBtn')?.addEventListener('click', () => { let code = document.getElementById('executorCode').value; if(code.trim()){ document.getElementById('executorLog').innerHTML += `\n> 执行: ${code.substring(0,60)}...`; showToast("已执行", false); } else showToast("请输入代码", true); });
 document.getElementById('clearExecutorBtn')?.addEventListener('click', () => { document.getElementById('executorCode').value = ''; document.getElementById('executorLog').innerHTML = '控制台已清空'; });
-document.getElementById('injectBtn')?.addEventListener('click', () => { if(!currentUser) { showToast("请先登录", true); return; } showToast("注入器已连接(演示)", false); });
+document.getElementById('injectBtn')?.addEventListener('click', () => { if(!checkAccess()) return; showToast("注入器已连接(演示)", false); });
 document.getElementById('toggleGlobalMuteBtn')?.addEventListener('click', toggleGlobalMute);
 
 document.getElementById('doLoginBtn')?.addEventListener('click', async () => { let u = document.getElementById('loginUsername').value.trim(); let p = document.getElementById('loginPassword').value; await login(u, p); });
@@ -781,7 +797,7 @@ document.getElementById('doRegisterBtn')?.addEventListener('click', async () => 
     }
 });
 
-// 初始化
+// 初始化：不自动弹登录窗，等用户点击需要登录的功能时才弹
 checkServerStatus();
 updateSidebarUI();
 renderGames();
@@ -789,7 +805,7 @@ renderChats('general');
 renderWhitelist();
 initGlobalMute();
 startAutoRefresh();
-if (!currentUser) document.getElementById('loginModal').classList.add('active');
+// 注意：这里不自动显示登录弹窗
 </script>
 
 <!-- ==================== 反调试保护（修复版：不清空页面） ==================== -->
@@ -805,7 +821,7 @@ if (!currentUser) document.getElementById('loginModal').classList.add('active');
         isLocked = true;
         const warning = document.createElement('div');
         warning.style.cssText = 'position:fixed;top:0;left:0;width:100%;background:#ef4444;color:white;padding:10px;text-align:center;z-index:99999';
-        warning.innerHTML = '⚠️ 检测到开发者工具，部分功能可能受限 ⚠️';
+        warning.innerHTML = '检测到开发者工具，部分功能可能受限 ⚠️';
         document.body.appendChild(warning);
         setTimeout(() => warning.remove(), 3000);
     }
