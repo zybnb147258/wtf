@@ -7,7 +7,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        /* 你的 CSS 保持不变，这里省略，你自己补上 */
         :root {
             --primary: #8b5cf6; --primary-light: #a78bfa; --primary-dark: #7c3aed; --primary-glow: rgba(139, 92, 246, 0.2);
             --secondary: #6366f1; --accent: #d946ef; --success: #10b981; --warning: #f59e0b; --danger: #ef4444;
@@ -363,7 +362,6 @@ function getBeautyBadgeHtml(userId, isBeauty) {
     return "";
 }
 
-// 检查服务器状态
 async function checkServerStatus() {
     try {
         const res = await fetch('/api/reviews');
@@ -380,7 +378,6 @@ async function checkServerStatus() {
     }
 }
 
-// 评价
 async function renderReviews() {
     try {
         const res = await fetch('/api/reviews');
@@ -412,7 +409,6 @@ window.deleteReview = async (id) => {
     renderReviews();
 };
 
-// 游戏
 async function renderGames() {
     let container = document.getElementById('gamesContainer');
     if (!container) return;
@@ -429,7 +425,6 @@ async function renderGames() {
     } catch(e) { console.error(e); }
 }
 
-// 聊天
 async function renderChats(room) {
     try {
         const res = await fetch(`/api/chats/${room}`);
@@ -464,7 +459,6 @@ async function sendChat() {
     inp.value = '';
 }
 
-// 脚本
 async function renderScripts() {
     try {
         const res = await fetch('/api/scripts');
@@ -490,7 +484,6 @@ async function uploadScript() {
     if (currentRole === 'owner') renderAdminPanel();
 }
 
-// 白名单
 async function renderWhitelist() {
     try {
         const res = await fetch('/api/whitelist');
@@ -509,11 +502,11 @@ async function addToWhitelist() {
     renderWhitelist();
 }
 
-// 用户
 async function login(username, password) {
     try {
         const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
         const data = await res.json();
+        console.log("登录响应:", data);
         if (data.success) {
             currentUser = username; currentRole = data.role;
             currentUserData = { userId: data.userId, avatar: "", isBeauty: data.isBeauty || "A", isMuted: false };
@@ -524,7 +517,8 @@ async function login(username, password) {
             document.querySelectorAll('.page-content').forEach(p => p.classList.remove('active-page'));
             document.getElementById('reviewsPage').classList.add('active-page');
             document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active-side'));
-            document.querySelector('.sidebar-link[data-page="reviews"]').classList.add('active-side');
+            const activeLink = Array.from(document.querySelectorAll('.sidebar-link')).find(l => l.dataset.page === 'reviews');
+            if (activeLink) activeLink.classList.add('active-side');
             // 加载数据
             renderReviews();
             renderGames();
@@ -538,7 +532,7 @@ async function login(username, password) {
             return false;
         }
     } catch(e) {
-        showToast("服务器连接失败", true);
+        showToast("服务器连接失败: " + e.message, true);
         return false;
     }
 }
@@ -557,7 +551,7 @@ async function register(username, password, cardKey, avatarBase64) {
             return false;
         }
     } catch(e) {
-        showToast("服务器连接失败", true);
+        showToast("服务器连接失败: " + e.message, true);
         return false;
     }
 }
@@ -582,9 +576,7 @@ function logout() {
     currentUser = null; currentRole = null; currentUserData = null; 
     updateSidebarUI(); 
     showToast("已登出", false); 
-    // 显示登录框
     document.getElementById('loginModal').style.display = 'flex';
-    // 切换到评价页面
     document.querySelectorAll('.page-content').forEach(p => p.classList.remove('active-page'));
     document.getElementById('reviewsPage').classList.add('active-page');
 }
@@ -597,7 +589,6 @@ function updateSidebarUI() {
     }
 }
 
-// 管理员
 async function renderAdminPanel() {
     if (currentRole !== 'owner') return;
     try {
@@ -676,7 +667,6 @@ window.deleteChatMsg = async (id) => {
     renderChats(currentRoom);
 };
 
-// 全局禁言
 async function initGlobalMute() {
     try {
         const res = await fetch('/api/admin/globalMuteStatus');
@@ -708,7 +698,6 @@ async function toggleGlobalMute() {
     } catch(e) { showToast("操作失败", true); }
 }
 
-// 页面切换
 function switchPage(pageId) {
     if ((pageId === 'games' || pageId === 'whitelist' || pageId === 'executor') && !currentUser) { showToast("请先登录", true); pageId = 'reviews'; }
     if (pageId === 'admin' && currentRole !== 'owner') { showToast("只有管理员可以访问管理面板", true); pageId = 'reviews'; }
@@ -787,7 +776,6 @@ document.getElementById('doRegisterBtn')?.addEventListener('click', async () => 
     }
 });
 
-// 初始化
 checkServerStatus();
 updateSidebarUI();
 renderGames();
@@ -798,7 +786,7 @@ startAutoRefresh();
 if (!currentUser) document.getElementById('loginModal').style.display = 'flex';
 </script>
 
-<!-- ==================== 反调试保护 ==================== -->
+<!-- ==================== 反调试保护（修复版：不清空页面） ==================== -->
 <script>
 (function() {
     'use strict';
@@ -809,25 +797,16 @@ if (!currentUser) document.getElementById('loginModal').style.display = 'flex';
     function executeLockdown() {
         if (isLocked) return;
         isLocked = true;
-        let maxTimerId = setTimeout(function() {}, 0);
-        for (let i = 0; i <= maxTimerId; i++) { clearTimeout(i); clearInterval(i); }
-        if (document.body) {
-            while (document.body.firstChild) document.body.removeChild(document.body.firstChild);
-            document.body.style.margin = '0'; document.body.style.padding = '0';
-            document.body.style.background = '#0f0a23'; document.body.style.minHeight = '100vh';
-            document.body.style.display = 'flex'; document.body.style.alignItems = 'center';
-            document.body.style.justifyContent = 'center';
-        }
-        const lockCard = document.createElement('div');
-        lockCard.style.cssText = 'text-align:center;padding:40px 32px;background:#1a1439;border-radius:32px;border:1px solid #3a3168;max-width:420px;width:90%;margin:20px';
-        lockCard.innerHTML = `<h1 style="background:linear-gradient(135deg,#ef4444,#f97316);-webkit-background-clip:text;background-clip:text;color:transparent;font-size:1.9rem;margin-bottom:24px">🔒 检测到非法调试</h1><div style="background:#241d52;border-radius:20px;padding:20px;margin:20px 0;border-left:3px solid #ef4444"><p style="color:#ef4444">页面已锁定</p></div><button id="lockReloadBtn" style="background:#8b5cf6;border:none;padding:12px 28px;border-radius:40px;color:white;cursor:pointer">刷新页面</button>`;
-        document.body.appendChild(lockCard);
-        document.getElementById('lockReloadBtn')?.addEventListener('click', () => location.reload());
+        // 不清空页面，只显示警告
+        const warning = document.createElement('div');
+        warning.style.cssText = 'position:fixed;top:0;left:0;width:100%;background:#ef4444;color:white;padding:10px;text-align:center;z-index:99999';
+        warning.innerHTML = '⚠️ 检测到开发者工具，部分功能可能受限 ⚠️';
+        document.body.appendChild(warning);
+        setTimeout(() => warning.remove(), 3000);
     }
-    let monitorInterval = setInterval(function() { if (!isLocked && isDevToolsActive()) { clearInterval(monitorInterval); executeLockdown(); } }, 1000);
+    let monitorInterval = setInterval(function() { if (!isLocked && isDevToolsActive()) { clearInterval(monitorInterval); executeLockdown(); } }, 3000);
     document.addEventListener('contextmenu', e => e.preventDefault());
-    document.addEventListener('keydown', e => { if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) || (e.ctrlKey && e.key === 'u')) { e.preventDefault(); if (!isLocked) executeLockdown(); } });
-    setTimeout(function() { if (!isLocked && isDevToolsActive()) executeLockdown(); }, 500);
+    document.addEventListener('keydown', e => { if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) || (e.ctrlKey && e.key === 'u')) { e.preventDefault(); } });
 })();
 </script>
 </body>
