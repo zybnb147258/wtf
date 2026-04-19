@@ -4,11 +4,11 @@ const app = express();
 app.use(express.json());
 app.use(express.static('public'));
 
-// ==================== 硬编码配置 ====================
-const GITHUB_TOKEN = "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";
-const GITHUB_USER = "liushumei11110-boop";
-const REPO_NAME = "lovess";
-const OWNER_PASSWORD = "khyzybnb666147";
+// ==================== 从环境变量读取配置 ====================
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+const GITHUB_USER = process.env.GITHUB_USER || "liushumei11110-boop";
+const REPO_NAME = process.env.REPO_NAME || "lovess";
+const OWNER_PASSWORD = process.env.OWNER_PASSWORD || "khyzybnb666147";
 
 // 测试路由：用来验证服务器是否运行
 app.get('/test', (req, res) => {
