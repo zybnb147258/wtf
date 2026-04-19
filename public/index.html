@@ -1,1 +1,834 @@
-服务器连接失败
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>LOVESS</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* 你的 CSS 保持不变，这里省略，你自己补上 */
+        :root {
+            --primary: #8b5cf6; --primary-light: #a78bfa; --primary-dark: #7c3aed; --primary-glow: rgba(139, 92, 246, 0.2);
+            --secondary: #6366f1; --accent: #d946ef; --success: #10b981; --warning: #f59e0b; --danger: #ef4444;
+            --background: #0f0a23; --surface: #1a1439; --surface-alt: #241d52; --surface-hover: #2d2566;
+            --text-primary: #f8fafc; --text-secondary: #cbd5e1; --text-muted: #94a3b8; --border: #3a3168;
+            --radius: 12px; --radius-lg: 20px; --radius-xl: 28px; --shadow: 0 4px 6px -1px rgba(0,0,0,0.4);
+            --shadow-purple: 0 0 20px rgba(139,92,246,0.4); --transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', 'Microsoft YaHei', 'PingFang SC', sans-serif; background: var(--background); color: var(--text-primary); line-height: 1.6; overflow-x: hidden; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 0 24px; }
+        .animated-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; overflow: hidden; }
+        .bg-circle { position: absolute; border-radius: 50%; background: radial-gradient(circle, var(--primary-glow) 0%, transparent 70%); filter: blur(40px); animation: float 20s infinite linear; }
+        .bg-circle:nth-child(1) { width: 400px; height: 400px; top: 10%; left: 10%; }
+        .bg-circle:nth-child(2) { width: 300px; height: 300px; top: 60%; right: 10%; animation-delay: 5s; }
+        .bg-circle:nth-child(3) { width: 500px; height: 500px; bottom: 10%; left: 20%; animation-delay: 10s; }
+        @keyframes float { 0%,100% { transform: translate(0,0) scale(1); } 25% { transform: translate(20px,20px) scale(1.1); } 50% { transform: translate(-10px,10px) scale(0.9); } 75% { transform: translate(10px,-20px) scale(1.05); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .navbar { display: flex; justify-content: space-between; align-items: center; padding: 20px 0; position: sticky; top: 0; z-index: 1000; background: rgba(26,20,57,0.95); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); }
+        .logo { font-size: 1.8rem; font-weight: 800; background: linear-gradient(135deg, var(--primary), var(--accent)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+        .menu-icon { font-size: 1.8rem; cursor: pointer; background: var(--surface); width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius); border: 1px solid var(--border); transition: var(--transition); }
+        .menu-icon:hover { background: var(--surface-hover); color: var(--primary); }
+        .sidebar { position: fixed; top: 0; left: -280px; width: 280px; height: 100%; background: var(--surface); backdrop-filter: blur(30px); z-index: 2000; transition: left 0.3s; padding: 80px 20px 30px; border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 16px; overflow-y: auto; }
+        .sidebar.open { left: 0; }
+        .sidebar-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1999; display: none; }
+        .sidebar-overlay.active { display: block; }
+        .sidebar-link { display: flex; align-items: center; gap: 14px; padding: 14px 20px; border-radius: var(--radius); color: var(--text-secondary); font-weight: 600; cursor: pointer; transition: var(--transition); }
+        .sidebar-link i { width: 28px; }
+        .sidebar-link:hover, .sidebar-link.active-side { background: var(--surface-hover); color: var(--primary); border-left: 3px solid var(--primary); }
+        .sidebar-footer { margin-top: auto; padding-top: 20px; border-top: 1px solid var(--border); }
+        .btn { background: linear-gradient(135deg, var(--primary), var(--accent)); color: white; border: none; padding: 12px 24px; border-radius: var(--radius); font-weight: 600; cursor: pointer; transition: var(--transition); display: inline-flex; align-items: center; gap: 8px; }
+        .btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-purple); }
+        .btn-secondary { background: var(--surface); color: var(--text-secondary); border: 2px solid var(--border); }
+        .btn-success { background: linear-gradient(135deg, var(--success), #059669); }
+        .btn-danger { background: linear-gradient(135deg, var(--danger), #b91c1c); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .page-content { display: none; animation: fadeIn 0.4s ease; }
+        .page-content.active-page { display: block; }
+        .page-header { text-align: center; padding: 60px 0 30px; }
+        .page-header h1 { font-size: 3rem; background: linear-gradient(135deg, var(--primary), var(--accent)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+        .input-field { background: var(--surface-alt); border: 2px solid var(--border); padding: 12px 20px; border-radius: var(--radius); color: var(--text-primary); width: 100%; font-family: inherit; }
+        .input-field:disabled { opacity: 0.5; cursor: not-allowed; }
+        .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, var(--primary), var(--accent)); color: white; padding: 12px 28px; border-radius: 40px; z-index: 3000; animation: slideUp 0.3s ease; display: flex; gap: 10px; align-items: center; z-index: 9999; }
+        .login-modal, .register-modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.85); backdrop-filter: blur(12px); z-index: 4000; align-items: center; justify-content: center; }
+        .login-modal.active, .register-modal.active { display: flex; }
+        .modal-container { background: var(--surface); padding: 40px; border-radius: var(--radius-xl); width: 450px; max-width: 90%; max-height: 90vh; overflow-y: auto; }
+        .card { background: var(--surface); border-radius: var(--radius-xl); padding: 24px; border: 1px solid var(--border); margin: 20px 0; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px; margin-bottom: 30px; }
+        .stat-card { background: var(--surface); border-radius: var(--radius-lg); padding: 24px; text-align: center; border: 1px solid var(--border); transition: 0.2s; }
+        .stat-number { font-size: 2.5rem; font-weight: 800; background: linear-gradient(135deg, var(--primary), var(--accent)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+        .games-grid, .scripts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 24px; margin-top: 20px; }
+        .game-card, .script-card { background: var(--surface); border-radius: var(--radius-lg); padding: 20px; border: 1px solid var(--border); transition: 0.2s; }
+        .game-card:hover, .script-card:hover { transform: translateY(-4px); border-color: var(--primary); box-shadow: var(--shadow-purple); }
+        .chat-container { background: var(--surface); border-radius: var(--radius-xl); padding: 20px; }
+        .chat-messages { height: 400px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+        .msg-bubble { background: var(--surface-alt); padding: 10px 16px; border-radius: 18px; max-width: 75%; align-self: flex-start; border-left: 3px solid var(--primary); cursor: pointer; transition: 0.2s; }
+        .msg-bubble:hover { background: var(--surface-hover); transform: scale(1.01); }
+        .msg-own { align-self: flex-end; background: linear-gradient(135deg, var(--primary), var(--accent)); color: white; }
+        .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+        .tab { padding: 8px 20px; background: var(--surface); border-radius: 30px; cursor: pointer; border: 1px solid var(--border); transition: 0.2s; }
+        .tab.active { background: var(--primary); color: white; border-color: var(--primary); }
+        .executor-panel { background: var(--surface); border-radius: var(--radius-xl); padding: 24px; }
+        textarea.executor-code { width: 100%; background: #0a0620; border: 2px solid var(--border); border-radius: var(--radius); padding: 16px; color: #0f0; font-family: monospace; resize: vertical; }
+        footer { text-align: center; padding: 40px 0; border-top: 1px solid var(--border); margin-top: 40px; color: var(--text-muted); }
+        @keyframes slideUp { from { opacity:0; transform: translate(-50%,20px); } to { opacity:1; transform: translate(-50%,0); } }
+        .loading-spinner { text-align: center; padding: 40px; color: var(--text-secondary); }
+        .refresh-btn { margin-left: 16px; background: var(--surface-alt); border: 1px solid var(--border); padding: 8px 16px; border-radius: var(--radius); cursor: pointer; font-size: 0.9rem; }
+        .game-player-count { font-size: 0.85rem; color: var(--text-muted); margin: 8px 0; }
+        .admin-row { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 8px; }
+        .ban-btn { padding: 4px 12px; font-size: 0.8rem; cursor: pointer; }
+        .game-icon { width: 100%; height: 120px; object-fit: cover; border-radius: 12px; margin-bottom: 12px; background: var(--surface-alt); }
+        .avatar-img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; margin-right: 12px; cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; background: var(--surface-alt); }
+        .avatar-img:hover { transform: scale(1.1); border: 2px solid var(--primary); }
+        .profile-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); backdrop-filter: blur(20px); z-index: 5000; align-items: center; justify-content: center; }
+        .profile-modal.active { display: flex; }
+        .profile-container { background: var(--surface); border-radius: var(--radius-xl); padding: 40px; width: 400px; max-width: 90%; text-align: center; }
+        .profile-avatar { width: 120px; height: 120px; border-radius: 50%; object-fit: cover; margin-bottom: 20px; border: 3px solid var(--primary); background: var(--surface-alt); display: flex; align-items: center; justify-content: center; font-size: 48px; }
+        .close-profile { margin-top: 20px; }
+        .review-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid var(--border); }
+        .review-delete { background: var(--danger); border: none; color: white; padding: 4px 12px; border-radius: 8px; cursor: pointer; }
+        
+        .beauty-badge-b {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            height: 32px;
+            padding: 0 8px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, #ff3366 0%, #ff0033 20%, #cc0000 50%, #990000 100%);
+            box-shadow: 0 0 0 1px rgba(255, 0, 51, 0.3), 0 4px 20px rgba(255, 0, 51, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2), inset 0 -1px 0 rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            transform: skewX(-5deg);
+            transition: transform 0.2s ease;
+            margin-left: 8px;
+        }
+        .beauty-badge-b:hover {
+            transform: skewX(-5deg) scale(1.02);
+            box-shadow: 0 0 0 1px rgba(255, 51, 102, 0.5), 0 6px 24px rgba(255, 0, 51, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        }
+        .beauty-text-b {
+            color: #fff;
+            font-size: 18px;
+            font-weight: 900;
+            font-style: italic;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 0 8px rgba(255, 255, 255, 0.4);
+            letter-spacing: 1px;
+            position: relative;
+            z-index: 2;
+            transform: skewX(5deg);
+        }
+        .beauty-text-b::before {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            color: transparent;
+            background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.8) 50%, transparent 100%);
+            background-size: 200% 100%;
+            background-clip: text;
+            -webkit-background-clip: text;
+            animation: text-shine 3s infinite linear;
+            z-index: 3;
+            pointer-events: none;
+        }
+        .number-box-b {
+            position: relative;
+            padding: 2px 8px;
+            background: linear-gradient(90deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+            border-radius: 8px;
+            margin: 0 4px;
+            overflow: hidden;
+            transform: skewX(5deg);
+        }
+        .number-box-b::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 60%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.4) 50%, transparent 100%);
+            animation: number-shine 4s infinite linear;
+            pointer-events: none;
+        }
+        .beauty-number-b {
+            color: #fff;
+            font-size: 16px;
+            font-weight: 700;
+            font-family: "Arial", "Helvetica Neue", sans-serif;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 0 4px rgba(255, 255, 255, 0.3);
+            transform: skewX(5deg);
+            letter-spacing: 0.5px;
+        }
+        .beauty-badge-b::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 20%, rgba(255, 255, 255, 0.08) 100%);
+            border-radius: 16px;
+            z-index: 1;
+            pointer-events: none;
+        }
+        .beauty-badge-b::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 40%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.7) 20%, rgba(255, 255, 255, 0.9) 50%, rgba(255, 255, 255, 0.7) 80%, transparent 100%);
+            animation: light-sweep 2.5s infinite ease-in-out;
+            z-index: 1;
+            pointer-events: none;
+        }
+        .stars-container-b {
+            position: absolute;
+            top: -10px;
+            left: 0;
+            width: 100%;
+            height: 20px;
+            overflow: visible;
+            pointer-events: none;
+            z-index: 3;
+        }
+        .star-b {
+            position: absolute;
+            color: #fff;
+            font-size: 10px;
+            opacity: 0;
+            filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.9));
+            animation: star-fly linear forwards;
+            pointer-events: none;
+        }
+        .star-b:nth-child(1) { top: 0; left: 10%; animation-duration: 2.5s; animation-delay: 0s; }
+        .star-b:nth-child(2) { top: 5px; left: 30%; animation-duration: 2.2s; animation-delay: 0.8s; }
+        .star-b:nth-child(3) { top: 2px; left: 60%; animation-duration: 2.8s; animation-delay: 1.5s; }
+        .star-b:nth-child(4) { top: 8px; left: 80%; animation-duration: 2.1s; animation-delay: 2.2s; }
+        .dot-b {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            opacity: 0;
+            animation: dot-fade 3s infinite ease-in-out;
+            pointer-events: none;
+        }
+        .dot-b:nth-child(1) { top: 6px; left: 20px; animation-delay: 0.3s; }
+        .dot-b:nth-child(2) { top: 22px; right: 25px; animation-delay: 1.2s; }
+        .dot-b:nth-child(3) { bottom: 8px; left: 40px; animation-delay: 2.1s; }
+        
+        @keyframes light-sweep { 0% { left: -100%; opacity: 0; } 20% { opacity: 1; } 80% { opacity: 1; } 100% { left: 300%; opacity: 0; } }
+        @keyframes text-shine { 0% { background-position: -100% 0; opacity: 0.8; } 50% { opacity: 1; } 100% { background-position: 200% 0; opacity: 0.8; } }
+        @keyframes number-shine { 0% { left: -100%; } 100% { left: 200%; } }
+        @keyframes star-fly { 0% { transform: translateX(0) translateY(0) rotate(0deg); opacity: 0; } 20% { opacity: 1; } 80% { opacity: 1; } 100% { transform: translateX(80px) translateY(-20px) rotate(15deg); opacity: 0; } }
+        @keyframes dot-fade { 0%, 100% { opacity: 0; transform: scale(0.5); } 50% { opacity: 0.7; transform: scale(1); } }
+        
+        .beauty-badge-a {
+            display: inline-flex;
+            align-items: center;
+            margin-left: 8px;
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: bold;
+            color: #fff;
+        }
+        .server-status {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: rgba(0,0,0,0.8);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+            border-left: 3px solid #10b981;
+        }
+        .server-status.success { border-left-color: #10b981; }
+        .server-status.error { border-left-color: #ef4444; }
+        .server-status.warning { border-left-color: #f59e0b; }
+        .global-mute-badge {
+            background: #ef4444;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            margin-left: 12px;
+        }
+    </style>
+</head>
+<body>
+<div class="animated-bg"><div class="bg-circle"></div><div class="bg-circle"></div><div class="bg-circle"></div></div>
+<div id="serverStatus" class="server-status">连接服务器中...</div>
+<div id="sidebarOverlay" class="sidebar-overlay"></div>
+<div id="sidebar" class="sidebar">
+    <div class="sidebar-link active-side" data-page="reviews"><i class="fas fa-star"></i> 评价</div>
+    <div class="sidebar-link" data-page="features"><i class="fas fa-gem"></i> 功能</div>
+    <div class="sidebar-link" data-page="games"><i class="fas fa-gamepad"></i> 游戏</div>
+    <div class="sidebar-link" data-page="chat"><i class="fas fa-comments"></i> 聊天</div>
+    <div class="sidebar-link" data-page="scripts"><i class="fas fa-code"></i> 脚本</div>
+    <div class="sidebar-link" data-page="executor"><i class="fas fa-terminal"></i> 执行器</div>
+    <div class="sidebar-link" data-page="whitelist"><i class="fas fa-list-check"></i> 白名单</div>
+    <div class="sidebar-link" data-page="admin"><i class="fas fa-shield-alt"></i> 管理面板</div>
+    <div class="sidebar-footer"><button id="sidebarUserBtn" class="btn btn-secondary" style="width:100%;">登录/注册</button></div>
+</div>
+
+<div class="container">
+    <nav class="navbar"><div class="logo">LOVESS SERVERSIDE</div><div class="menu-icon" id="menuToggle"><i class="fas fa-bars"></i></div></nav>
+
+    <div id="reviewsPage" class="page-content active-page">
+        <div class="page-header"><h1>用户评价</h1></div>
+        <div class="stats-grid" id="reviewStats">
+            <div class="stat-card"><div class="stat-number" id="statGameCount">0</div><div>游戏总数</div></div>
+            <div class="stat-card"><div class="stat-number" id="statTotalPlayers">0</div><div>总在线人数</div></div>
+            <div class="stat-card"><div class="stat-number" id="statReviewCount">0</div><div>用户评价</div></div>
+        </div>
+        <div id="reviewsList" class="card">加载中...</div>
+        <div class="card">
+            <textarea id="newReviewContent" class="input-field" rows="3" placeholder="分享你的使用体验..."></textarea>
+            <select id="newReviewRating" class="input-field" style="width:auto; margin-top:12px;"><option value="5">5星</option><option value="4">4星</option><option value="3">3星</option></select>
+            <button id="submitReviewBtn" class="btn btn-success" style="margin-top:12px;">发布评价</button>
+        </div>
+    </div>
+    
+    <div id="featuresPage" class="page-content"><div class="page-header"><h1>核心功能</h1></div><div class="games-grid"><div class="game-card"><i class="fas fa-shield-alt" style="font-size:2rem;"></i><h3>99.99%</h3><p>实时检测ban与gameban</p></div><div class="game-card"><i class="fas fa-bolt"></i><h3>极速响应</h3><p>毫秒级命令处理</p></div><div class="game-card"><i class="fas fa-users"></i><h3>社区驱动</h3><p>68+活跃用户</p></div><div class="game-card"><i class="fas fa-code"></i><h3>API</h3><p>完整SDK支持</p></div></div></div>
+    
+    <div id="gamesPage" class="page-content">
+        <div class="page-header"><h1>游戏库 <button id="refreshGamesBtn" class="refresh-btn"><i class="fas fa-sync-alt"></i> 同步游戏数据</button><span id="updateStatus" style="font-size:14px; margin-left:12px;"></span></h1></div>
+        <div id="gamesContainer" class="games-grid"><div class="loading-spinner">加载游戏数据中...</div></div>
+    </div>
+    
+    <div id="chatPage" class="page-content"><div class="page-header"><h1>社区聊天</h1></div><div class="chat-container"><div class="tabs" id="chatTabs"><button class="tab active" data-room="general">综合</button><button class="tab" data-room="support">支持</button><button class="tab" data-room="dev">开发</button></div><div id="chatMsgs" class="chat-messages"></div><div style="display:flex; gap:10px;"><input id="chatInput" class="input-field" placeholder="输入消息..."><button id="sendChatBtn" class="btn">发送</button></div></div></div></div>
+    
+    <div id="scriptsPage" class="page-content"><div class="page-header"><h1>脚本库</h1></div><div class="card"><h3>上传新脚本</h3><input id="scriptName" class="input-field" placeholder="脚本名称"><textarea id="scriptDesc" rows="2" class="input-field" placeholder="脚本描述"></textarea><input type="file" id="scriptImage" accept="image/*"><button id="uploadScriptBtn" class="btn btn-success" style="margin-top:12px;">提交审核</button><p style="font-size:0.7rem; margin-top:8px;">脚本需经管理员审核通过后才会公开显示</p></div><div id="scriptsContainer" class="scripts-grid"></div></div>
+    
+    <div id="executorPage" class="page-content"><div class="page-header"><h1>脚本执行器</h1></div><div class="executor-panel"><textarea id="executorCode" class="executor-code" rows="6" placeholder="-- 粘贴你的 Lua 脚本&#10;print('Hello World')"></textarea><div style="display:flex; gap:12px; margin-top:16px;"><button id="executeBtn" class="btn btn-success">执行</button><button id="clearExecutorBtn" class="btn btn-secondary">清空</button><button id="injectBtn" class="btn">注入</button></div><div id="executorLog" style="margin-top:20px; background:#0a0620; border-radius:12px; padding:12px; font-family:monospace; color:#0f0; max-height:150px; overflow-y:auto;">wait executor</div></div></div></div>
+    
+    <div id="whitelistPage" class="page-content"><div class="page-header"><h1>白名单管理</h1></div><div class="card"><h3>添加用户至白名单</h3><div style="display:flex; gap:12px; margin:16px 0;"><input id="whitelistName" class="input-field" placeholder="Roblox user"><button id="addWhitelistBtn" class="btn btn-success">添加</button></div><div id="whitelistUsers" style="display:flex; flex-wrap:wrap; gap:10px;"></div></div></div></div>
+    
+    <div id="adminPage" class="page-content">
+        <div class="page-header">
+            <h1>管理面板</h1>
+            <div id="globalMuteStatus" style="margin-top: 10px;"></div>
+            <button id="toggleGlobalMuteBtn" class="btn btn-danger" style="margin-top: 10px;">
+                切换全局禁言
+            </button>
+            <p style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">
+                开启后，所有用户将无法使用聊天、评价、脚本功能
+            </p>
+        </div>
+        <div id="adminContent" class="card">仅限owner访问</div>
+    </div>
+    <footer>LOVESS</footer>
+</div>
+
+<div id="loginModal" class="login-modal"><div class="modal-container"><h2>登录</h2><input id="loginUsername" class="input-field" placeholder="用户名"><input id="loginPassword" type="password" class="input-field" placeholder="密码" style="margin-top:12px;"><div style="display:flex; gap:12px; margin-top:24px;"><button id="doLoginBtn" class="btn" style="flex:1;">登录</button><button id="toRegisterBtn" class="btn btn-secondary" style="flex:1;">去注册</button><button id="closeLoginBtn" class="btn btn-secondary">取消</button></div></div></div>
+
+<div id="registerModal" class="register-modal"><div class="modal-container"><h2>注册新账号</h2><input id="regUsername" class="input-field" placeholder="用户名 (至少3位)"><input id="regPassword" type="password" class="input-field" placeholder="密码" style="margin-top:12px;"><input id="regCard" class="input-field" placeholder="卡密 (选填)" style="margin-top:12px;"><div style="margin-top:8px; font-size:0.75rem; color:var(--text-muted);">卡密需购买QQ群: 1095848365 </div><input type="file" id="regAvatar" accept="image/*" style="margin-top:12px; background:var(--surface-alt); color:var(--text-primary);"><div style="margin-top:8px; font-size:0.7rem; color:var(--text-muted);">可选：上传头像</div><div style="display:flex; gap:12px; margin-top:24px;"><button id="doRegisterBtn" class="btn btn-success" style="flex:1;">注册</button><button id="closeRegisterBtn" class="btn btn-secondary">取消</button></div></div></div>
+
+<div id="profileModal" class="profile-modal"><div class="profile-container" id="profileContent"></div></div>
+
+<script>
+// ==================== 后端 API 调用版本（修复版） ====================
+const API_BASE = '';
+let currentUser = null, currentRole = null;
+let currentRoom = "general";
+let githubGames = [];
+let autoRefreshTimer = null;
+let currentUserData = null;
+let globalMuteEnabled = false;
+
+function showToast(msg, isError) {
+    let t = document.createElement('div'); t.className = 'toast';
+    t.innerHTML = `<i class="fas ${isError ? 'fa-exclamation-triangle' : 'fa-check-circle'}"></i> ${msg}`;
+    document.body.appendChild(t); setTimeout(() => t.remove(), 2500);
+}
+
+function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'})[m]); }
+
+function getBeautyBadgeHtml(userId, isBeauty) {
+    if (isBeauty === "B") {
+        return `<div class="beauty-badge-b"><div class="stars-container-b"><div class="star-b">★</div><div class="star-b">✦</div><div class="star-b">✧</div><div class="star-b">✦</div></div><span class="beauty-text-b" data-text="靓">靓</span><div class="number-box-b"><span class="beauty-number-b">${escapeHtml(userId)}</span></div><div class="dot-b"></div><div class="dot-b"></div><div class="dot-b"></div></div>`;
+    } else if (isBeauty === "A") {
+        return `<span class="beauty-badge-a">靓号</span>`;
+    }
+    return "";
+}
+
+// 检查服务器状态
+async function checkServerStatus() {
+    try {
+        const res = await fetch('/api/reviews');
+        if (res.ok) {
+            document.getElementById('serverStatus').innerHTML = '服务器已连接';
+            document.getElementById('serverStatus').className = 'server-status success';
+        } else {
+            document.getElementById('serverStatus').innerHTML = '服务器异常';
+            document.getElementById('serverStatus').className = 'server-status error';
+        }
+    } catch(e) {
+        document.getElementById('serverStatus').innerHTML = '连接失败';
+        document.getElementById('serverStatus').className = 'server-status error';
+    }
+}
+
+// 评价
+async function renderReviews() {
+    try {
+        const res = await fetch('/api/reviews');
+        const reviews = await res.json();
+        document.getElementById('reviewsList').innerHTML = reviews.length === 0 ? '<div class="card">暂无评价</div>' : reviews.map(r => `<div class="review-item"><div><strong>${escapeHtml(r.name)}</strong> ${'★'.repeat(r.rating)}<p>${escapeHtml(r.text)}</p></div>${currentRole === 'owner' ? `<button class="review-delete" onclick="deleteReview(${r.id})">删除</button>` : ''}</div>`).join('');
+        document.getElementById('statReviewCount').innerText = reviews.length;
+    } catch(e) { console.error(e); }
+}
+
+async function submitReview() {
+    if (!currentUser) { showToast("请先登录", true); return; }
+    let content = document.getElementById('newReviewContent').value.trim();
+    let rating = parseInt(document.getElementById('newReviewRating').value);
+    if (!content) { showToast("请输入评价内容", true); return; }
+    await fetch('/api/review', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: currentUser, rating, text: content })
+    });
+    showToast("评价发布成功", false);
+    document.getElementById('newReviewContent').value = '';
+    renderReviews();
+}
+
+window.deleteReview = async (id) => {
+    if (currentRole !== 'owner') return;
+    await fetch('/api/review/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+    showToast("评价已删除", false);
+    renderReviews();
+};
+
+// 游戏
+async function renderGames() {
+    let container = document.getElementById('gamesContainer');
+    if (!container) return;
+    if (!currentUser) {
+        container.innerHTML = `<div class="card"><p>需要登录才能访问游戏库</p><button class="btn btn-secondary" onclick="document.getElementById('loginModal').classList.add('active')">立即登录/注册</button></div>`;
+        return;
+    }
+    try {
+        const res = await fetch('/api/games');
+        let games = await res.json();
+        container.innerHTML = games.map(game => `<div class="game-card"><h3>${escapeHtml(game.name)}</h3><div class="game-player-count"><i class="fas fa-users"></i> 在线人数: ${game.players}</div><p>${escapeHtml(game.description)}</p><button class="btn btn-secondary" onclick="window.open('${game.link}','_blank')">开始游戏</button></div>`).join('');
+        document.getElementById('statGameCount').innerText = games.length;
+        document.getElementById('statTotalPlayers').innerText = games.reduce((s,g)=>s+(g.players||0),0);
+    } catch(e) { console.error(e); }
+}
+
+// 聊天
+async function renderChats(room) {
+    try {
+        const res = await fetch(`/api/chats/${room}`);
+        let msgs = await res.json();
+        let box = document.getElementById('chatMsgs');
+        if (box) {
+            if (msgs.length === 0) box.innerHTML = '<div class="msg-bubble">暂无消息</div>';
+            else {
+                box.innerHTML = msgs.map(m => {
+                    const isOwn = m.user === currentUser;
+                    const beautyBadge = getBeautyBadgeHtml(m.userId, m.isBeauty);
+                    const avatarHtml = `<div class="avatar-img" onclick="showUserProfile('${escapeHtml(m.user)}')"><i class="fas fa-user"></i></div>`;
+                    return `<div class="msg-bubble ${isOwn ? 'msg-own' : ''}" style="display:flex; align-items:flex-start;">${!isOwn ? avatarHtml : ''}<div style="flex:1;"><strong>${escapeHtml(m.user)}</strong>${beautyBadge}<span style="font-size:0.7rem; margin-left:8px;">${m.time}</span><br>${escapeHtml(m.text)}</div>${isOwn ? avatarHtml : ''}</div>`;
+                }).join('');
+            }
+            box.scrollTop = box.scrollHeight;
+        }
+    } catch(e) { console.error(e); }
+}
+
+async function sendChat() {
+    let inp = document.getElementById('chatInput');
+    if (!inp.value.trim()) return;
+    if (!currentUser) { showToast("请先登录", true); document.getElementById('loginModal').classList.add('active'); return; }
+    if (globalMuteEnabled && currentRole !== 'owner') { showToast("系统维护中，聊天功能已关闭", true); return; }
+    await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user: currentUser, text: inp.value, room: currentRoom, userId: currentUserData?.userId || "", isBeauty: currentUserData?.isBeauty || "A" })
+    });
+    renderChats(currentRoom);
+    inp.value = '';
+}
+
+// 脚本
+async function renderScripts() {
+    try {
+        const res = await fetch('/api/scripts');
+        let scripts = await res.json();
+        document.getElementById('scriptsContainer').innerHTML = scripts.length === 0 ? '<div class="card">暂无已审核脚本</div>' : scripts.map(s => `<div class="script-card"><h4>${escapeHtml(s.name)}</h4><p>${escapeHtml(s.desc)}</p><small>作者: ${escapeHtml(s.author)}</small></div>`).join('');
+    } catch(e) { console.error(e); }
+}
+
+async function uploadScript() {
+    if (!currentUser) { showToast("请先登录", true); return; }
+    let name = document.getElementById('scriptName').value.trim();
+    let desc = document.getElementById('scriptDesc').value.trim();
+    if (!name || !desc) { showToast("请填写脚本名称和描述", true); return; }
+    await fetch('/api/script/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, desc, author: currentUser })
+    });
+    showToast("脚本已提交审核", false);
+    document.getElementById('scriptName').value = '';
+    document.getElementById('scriptDesc').value = '';
+    renderScripts();
+    if (currentRole === 'owner') renderAdminPanel();
+}
+
+// 白名单
+async function renderWhitelist() {
+    try {
+        const res = await fetch('/api/whitelist');
+        let whitelist = await res.json();
+        document.getElementById('whitelistUsers').innerHTML = whitelist.map(u => `<span class="tab">${escapeHtml(u)}</span>`).join('');
+    } catch(e) { console.error(e); }
+}
+
+async function addToWhitelist() {
+    if (currentRole !== 'owner') { showToast("仅管理员可操作", true); return; }
+    let name = document.getElementById('whitelistName').value.trim();
+    if (!name) { showToast("请输入用户名", true); return; }
+    await fetch('/api/whitelist/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+    showToast(`${name} 已添加至白名单`, false);
+    document.getElementById('whitelistName').value = '';
+    renderWhitelist();
+}
+
+// 用户
+async function login(username, password) {
+    try {
+        const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
+        const data = await res.json();
+        if (data.success) {
+            currentUser = username; currentRole = data.role;
+            currentUserData = { userId: data.userId, avatar: "", isBeauty: data.isBeauty || "A", isMuted: false };
+            updateSidebarUI();
+            showToast(`欢迎回来，${username}`, false);
+            document.getElementById('loginModal').classList.remove('active');
+            // 强制切换到评价页面
+            document.querySelectorAll('.page-content').forEach(p => p.classList.remove('active-page'));
+            document.getElementById('reviewsPage').classList.add('active-page');
+            document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active-side'));
+            document.querySelector('.sidebar-link[data-page="reviews"]').classList.add('active-side');
+            // 加载数据
+            renderReviews();
+            renderGames();
+            renderChats(currentRoom);
+            renderScripts();
+            renderWhitelist();
+            if (currentRole === 'owner') renderAdminPanel();
+            return true;
+        } else {
+            showToast("用户名或密码错误", true);
+            return false;
+        }
+    } catch(e) {
+        showToast("服务器连接失败", true);
+        return false;
+    }
+}
+
+async function register(username, password, cardKey, avatarBase64) {
+    if (username.length < 3) { showToast("用户名至少3位", true); return false; }
+    if (password.length < 3) { showToast("密码至少3位", true); return false; }
+    try {
+        const res = await fetch('/api/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password, cardKey }) });
+        const data = await res.json();
+        if (data.success) {
+            showToast(`注册成功！`, false);
+            return true;
+        } else {
+            showToast(data.error || "注册失败", true);
+            return false;
+        }
+    } catch(e) {
+        showToast("服务器连接失败", true);
+        return false;
+    }
+}
+
+async function showUserProfile(username) {
+    try {
+        const res = await fetch(`/api/user/${username}`);
+        const user = await res.json();
+        if (!user) { showToast("用户不存在", true); return; }
+        const beautyBadge = getBeautyBadgeHtml(user.userId, user.isBeauty);
+        document.getElementById('profileContent').innerHTML = `
+            <div class="profile-avatar"><i class="fas fa-user fa-3x"></i></div>
+            <h2>${escapeHtml(username)}</h2><p><strong>ID:</strong> ${user.userId}</p>${beautyBadge}
+            <p><strong>角色:</strong> ${user.role || '用户'}</p><p><strong>注册时间:</strong> ${new Date(user.createdAt).toLocaleString()}</p>
+            <button class="btn btn-secondary close-profile" onclick="document.getElementById('profileModal').classList.remove('active')">关闭</button>
+        `;
+        document.getElementById('profileModal').classList.add('active');
+    } catch(e) { showToast("获取用户信息失败", true); }
+}
+
+function logout() { 
+    currentUser = null; currentRole = null; currentUserData = null; 
+    updateSidebarUI(); 
+    showToast("已登出", false); 
+    // 显示登录框
+    document.getElementById('loginModal').style.display = 'flex';
+    // 切换到评价页面
+    document.querySelectorAll('.page-content').forEach(p => p.classList.remove('active-page'));
+    document.getElementById('reviewsPage').classList.add('active-page');
+}
+
+function updateSidebarUI() {
+    let btn = document.getElementById('sidebarUserBtn');
+    if (btn) {
+        if (currentUser) { btn.innerHTML = `<i class="fas fa-user"></i> ${currentUser} (登出)`; btn.onclick = () => logout(); }
+        else { btn.innerHTML = "<i class='fas fa-sign-in-alt'></i> 登录/注册"; btn.onclick = () => document.getElementById('loginModal').classList.add('active'); }
+    }
+}
+
+// 管理员
+async function renderAdminPanel() {
+    if (currentRole !== 'owner') return;
+    try {
+        const usersRes = await fetch('/api/admin/users');
+        let users = await usersRes.json();
+        const scriptsRes = await fetch('/api/admin/pending');
+        let pending = await scriptsRes.json();
+        const chatsRes = await fetch('/api/admin/chats');
+        let chats = await chatsRes.json();
+        const reviewsRes = await fetch('/api/reviews');
+        let reviews = await reviewsRes.json();
+        let container = document.getElementById('adminContent');
+        container.innerHTML = `
+            <h3>系统统计</h3>
+            <p>总用户: ${users.length} | 待审核脚本: ${pending.length} | 评价: ${reviews.length}</p>
+            <h3 style="margin-top:20px;">用户管理</h3>
+            <div id="userMgmt"></div>
+            <h3 style="margin-top:20px;">评价管理</h3>
+            <div id="reviewsMgmt"></div>
+            <h3 style="margin-top:20px;">待审核脚本</h3>
+            <div id="pendingScripts"></div>
+            <h3 style="margin-top:20px;">最近聊天记录</h3>
+            <div id="chatMgmt"></div>
+        `;
+        document.getElementById('userMgmt').innerHTML = users.map(user => `
+            <div class="admin-row">
+                <span><strong>${escapeHtml(user.name)}</strong> (${user.role}) ${user.banned ? '[已封禁]' : ''} ${user.isMuted ? '[已禁言]' : ''}</span>
+                <div>
+                    <button class="btn-secondary ban-btn" onclick="toggleBanUser('${escapeHtml(user.name)}')">${user.banned ? '解封' : '封禁'}</button>
+                    <button class="btn-secondary ban-btn" onclick="toggleMuteUser('${escapeHtml(user.name)}')">${user.isMuted ? '解除禁言' : '禁言'}</button>
+                    <button class="btn-success ban-btn" onclick="setBeautyUser('${escapeHtml(user.name)}', 'A')">A靓号</button>
+                    <button class="btn ban-btn" style="background:#ff3366;" onclick="setBeautyUser('${escapeHtml(user.name)}', 'B')">B靓号</button>
+                </div>
+            </div>
+        `).join('');
+        document.getElementById('reviewsMgmt').innerHTML = (reviews || []).map(r => `<div class="admin-row"><div><strong>${escapeHtml(r.name)}</strong> ${'★'.repeat(r.rating)}<br>${escapeHtml(r.text)}</div><button class="btn-danger ban-btn" onclick="deleteReview(${r.id})">删除</button></div>`).join('');
+        document.getElementById('pendingScripts').innerHTML = pending.length === 0 ? '<div>暂无待审核脚本</div>' : pending.map(s => `<div class="admin-row"><div><strong>${escapeHtml(s.name)}</strong><br>${escapeHtml(s.desc)}<br>作者: ${escapeHtml(s.author)}</div><div><button class="btn-success ban-btn" onclick="approveScript(${s.id})">通过</button><button class="btn-danger ban-btn" onclick="rejectScript(${s.id})">拒绝</button></div></div>`).join('');
+        document.getElementById('chatMgmt').innerHTML = (chats || []).slice(-20).reverse().map(c => `<div class="admin-row"><span><strong>${escapeHtml(c.user)}</strong>: ${escapeHtml(c.text.substring(0, 50))}</span><button class="btn-danger ban-btn" onclick="deleteChatMsg(${c.id})">删除</button></div>`).join('');
+    } catch(e) { console.error(e); }
+}
+
+window.toggleMuteUser = async (username) => {
+    if (currentRole !== 'owner') return;
+    await fetch('/api/admin/toggleMute', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username }) });
+    renderAdminPanel();
+};
+
+window.toggleBanUser = async (username) => {
+    if (currentRole !== 'owner') return;
+    await fetch('/api/admin/toggleBan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username }) });
+    renderAdminPanel();
+};
+
+window.setBeautyUser = async (username, type) => {
+    if (currentRole !== 'owner') return;
+    await fetch('/api/admin/setBeauty', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, type }) });
+    showToast(`${username} 已设为${type === 'B' ? 'B级靓号' : 'A级靓号'}`, false);
+    renderAdminPanel();
+};
+
+window.approveScript = async (id) => {
+    await fetch('/api/admin/approveScript', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+    renderAdminPanel();
+    renderScripts();
+};
+
+window.rejectScript = async (id) => {
+    await fetch('/api/admin/rejectScript', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+    renderAdminPanel();
+    renderScripts();
+};
+
+window.deleteChatMsg = async (id) => {
+    await fetch('/api/admin/deleteChat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+    renderAdminPanel();
+    renderChats(currentRoom);
+};
+
+// 全局禁言
+async function initGlobalMute() {
+    try {
+        const res = await fetch('/api/admin/globalMuteStatus');
+        const data = await res.json();
+        globalMuteEnabled = data.enabled;
+        updateAdminMuteStatus();
+    } catch(e) { console.error(e); }
+}
+
+async function updateAdminMuteStatus() {
+    const statusDiv = document.getElementById('globalMuteStatus');
+    if (!statusDiv) return;
+    try {
+        const res = await fetch('/api/admin/globalMuteStatus');
+        const data = await res.json();
+        const isMuted = data.enabled;
+        statusDiv.innerHTML = `<div class="card" style="display: inline-block; padding: 8px 20px;">当前状态: ${isMuted ? '<span style="background:#ef4444; padding:4px 12px; border-radius:20px;">全局禁言已开启</span>' : '<span style="background:#10b981; padding:4px 12px; border-radius:20px;">全局禁言已关闭</span>'}</div>`;
+    } catch(e) { console.error(e); }
+}
+
+async function toggleGlobalMute() {
+    if (currentRole !== 'owner') { showToast("只有管理员可以操作", true); return; }
+    try {
+        const res = await fetch('/api/admin/toggleGlobalMute', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+        const data = await res.json();
+        globalMuteEnabled = data.enabled;
+        updateAdminMuteStatus();
+        showToast(globalMuteEnabled ? "全局禁言已开启" : "全局禁言已关闭", false);
+    } catch(e) { showToast("操作失败", true); }
+}
+
+// 页面切换
+function switchPage(pageId) {
+    if ((pageId === 'games' || pageId === 'whitelist' || pageId === 'executor') && !currentUser) { showToast("请先登录", true); pageId = 'reviews'; }
+    if (pageId === 'admin' && currentRole !== 'owner') { showToast("只有管理员可以访问管理面板", true); pageId = 'reviews'; }
+    document.querySelectorAll('.page-content').forEach(p => p.classList.remove('active-page'));
+    let target = document.getElementById(pageId + 'Page');
+    if (target) target.classList.add('active-page');
+    document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active-side'));
+    let activeLink = Array.from(document.querySelectorAll('.sidebar-link')).find(l => l.dataset.page === pageId);
+    if (activeLink) activeLink.classList.add('active-side');
+    closeSidebar();
+    if (pageId === 'reviews') renderReviews();
+    if (pageId === 'games') renderGames();
+    if (pageId === 'chat') { renderChats(currentRoom); setTimeout(() => document.getElementById('chatInput')?.focus(), 100); }
+    if (pageId === 'scripts') renderScripts();
+    if (pageId === 'whitelist') renderWhitelist();
+    if (pageId === 'admin' && currentRole === 'owner') renderAdminPanel();
+}
+
+function startAutoRefresh() {
+    if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+    autoRefreshTimer = setInterval(async () => {
+        if (document.getElementById('chatPage')?.classList.contains('active-page')) await renderChats(currentRoom);
+        if (document.getElementById('reviewsPage')?.classList.contains('active-page')) await renderReviews();
+        if (document.getElementById('scriptsPage')?.classList.contains('active-page')) await renderScripts();
+        if (document.getElementById('whitelistPage')?.classList.contains('active-page')) await renderWhitelist();
+        if (document.getElementById('adminPage')?.classList.contains('active-page') && currentRole === 'owner') await renderAdminPanel();
+    }, 5000);
+}
+
+const sidebarEl = document.getElementById('sidebar'), overlay = document.getElementById('sidebarOverlay');
+document.getElementById('menuToggle').onclick = () => { sidebarEl.classList.add('open'); overlay.classList.add('active'); };
+function closeSidebar() { sidebarEl.classList.remove('open'); overlay.classList.remove('active'); }
+overlay.onclick = closeSidebar;
+document.querySelectorAll('.sidebar-link').forEach(link => { link.addEventListener('click', (e) => { let pg = e.currentTarget.dataset.page; if (pg) switchPage(pg); }); });
+
+window.showUserProfile = showUserProfile;
+window.deleteReview = deleteReview;
+window.toggleMuteUser = toggleMuteUser;
+window.toggleBanUser = toggleBanUser;
+window.setBeautyUser = setBeautyUser;
+window.approveScript = approveScript;
+window.rejectScript = rejectScript;
+window.deleteChatMsg = deleteChatMsg;
+
+document.getElementById('sendChatBtn')?.addEventListener('click', sendChat);
+document.getElementById('chatInput')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendChat(); });
+document.querySelectorAll('#chatTabs .tab').forEach(t => {
+    t.addEventListener('click', () => {
+        document.querySelectorAll('#chatTabs .tab').forEach(tt => tt.classList.remove('active'));
+        t.classList.add('active');
+        currentRoom = t.dataset.room;
+        renderChats(currentRoom);
+    });
+});
+document.getElementById('refreshGamesBtn')?.addEventListener('click', async () => { if (!currentUser) { showToast("请先登录", true); return; } showToast("正在同步...", false); await renderGames(); showToast("同步完成", false); });
+document.getElementById('uploadScriptBtn')?.addEventListener('click', uploadScript);
+document.getElementById('addWhitelistBtn')?.addEventListener('click', addToWhitelist);
+document.getElementById('submitReviewBtn')?.addEventListener('click', submitReview);
+document.getElementById('executeBtn')?.addEventListener('click', () => { let code = document.getElementById('executorCode').value; if(code.trim()){ document.getElementById('executorLog').innerHTML += `\n> 执行: ${code.substring(0,60)}...`; showToast("已执行", false); } else showToast("请输入代码", true); });
+document.getElementById('clearExecutorBtn')?.addEventListener('click', () => { document.getElementById('executorCode').value = ''; document.getElementById('executorLog').innerHTML = '控制台已清空'; });
+document.getElementById('injectBtn')?.addEventListener('click', () => { if(!currentUser) { showToast("请先登录", true); return; } showToast("注入器已连接(演示)", false); });
+document.getElementById('toggleGlobalMuteBtn')?.addEventListener('click', toggleGlobalMute);
+
+document.getElementById('doLoginBtn')?.addEventListener('click', async () => { let u = document.getElementById('loginUsername').value.trim(); let p = document.getElementById('loginPassword').value; await login(u, p); });
+document.getElementById('closeLoginBtn')?.addEventListener('click', () => document.getElementById('loginModal').classList.remove('active'));
+document.getElementById('toRegisterBtn')?.addEventListener('click', () => { document.getElementById('loginModal').classList.remove('active'); document.getElementById('registerModal').classList.add('active'); });
+document.getElementById('closeRegisterBtn')?.addEventListener('click', () => document.getElementById('registerModal').classList.remove('active'));
+document.getElementById('doRegisterBtn')?.addEventListener('click', async () => {
+    let u = document.getElementById('regUsername').value.trim();
+    let p = document.getElementById('regPassword').value.trim();
+    let c = document.getElementById('regCard').value.trim();
+    if (!u || !p) { showToast("请填写用户名和密码", true); return; }
+    if (await register(u, p, c, "")) {
+        document.getElementById('registerModal').classList.remove('active');
+        await login(u, p);
+    }
+});
+
+// 初始化
+checkServerStatus();
+updateSidebarUI();
+renderGames();
+renderChats('general');
+renderWhitelist();
+initGlobalMute();
+startAutoRefresh();
+if (!currentUser) document.getElementById('loginModal').style.display = 'flex';
+</script>
+
+<!-- ==================== 反调试保护 ==================== -->
+<script>
+(function() {
+    'use strict';
+    let isLocked = false;
+    function detectTimeDeviation() { const start = performance.now(); debugger; return performance.now() - start > 100; }
+    function detectDimensionDiff() { return (window.outerWidth - window.innerWidth > 160) || (window.outerHeight - window.innerHeight > 120); }
+    function isDevToolsActive() { try { return detectTimeDeviation() || detectDimensionDiff(); } catch(e) { return true; } }
+    function executeLockdown() {
+        if (isLocked) return;
+        isLocked = true;
+        let maxTimerId = setTimeout(function() {}, 0);
+        for (let i = 0; i <= maxTimerId; i++) { clearTimeout(i); clearInterval(i); }
+        if (document.body) {
+            while (document.body.firstChild) document.body.removeChild(document.body.firstChild);
+            document.body.style.margin = '0'; document.body.style.padding = '0';
+            document.body.style.background = '#0f0a23'; document.body.style.minHeight = '100vh';
+            document.body.style.display = 'flex'; document.body.style.alignItems = 'center';
+            document.body.style.justifyContent = 'center';
+        }
+        const lockCard = document.createElement('div');
+        lockCard.style.cssText = 'text-align:center;padding:40px 32px;background:#1a1439;border-radius:32px;border:1px solid #3a3168;max-width:420px;width:90%;margin:20px';
+        lockCard.innerHTML = `<h1 style="background:linear-gradient(135deg,#ef4444,#f97316);-webkit-background-clip:text;background-clip:text;color:transparent;font-size:1.9rem;margin-bottom:24px">🔒 检测到非法调试</h1><div style="background:#241d52;border-radius:20px;padding:20px;margin:20px 0;border-left:3px solid #ef4444"><p style="color:#ef4444">页面已锁定</p></div><button id="lockReloadBtn" style="background:#8b5cf6;border:none;padding:12px 28px;border-radius:40px;color:white;cursor:pointer">刷新页面</button>`;
+        document.body.appendChild(lockCard);
+        document.getElementById('lockReloadBtn')?.addEventListener('click', () => location.reload());
+    }
+    let monitorInterval = setInterval(function() { if (!isLocked && isDevToolsActive()) { clearInterval(monitorInterval); executeLockdown(); } }, 1000);
+    document.addEventListener('contextmenu', e => e.preventDefault());
+    document.addEventListener('keydown', e => { if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) || (e.ctrlKey && e.key === 'u')) { e.preventDefault(); if (!isLocked) executeLockdown(); } });
+    setTimeout(function() { if (!isLocked && isDevToolsActive()) executeLockdown(); }, 500);
+})();
+</script>
+</body>
+</html>
