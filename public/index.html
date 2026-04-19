@@ -317,12 +317,8 @@
         <div class="page-header">
             <h1>管理面板</h1>
             <div id="globalMuteStatus" style="margin-top: 10px;"></div>
-            <button id="toggleGlobalMuteBtn" class="btn btn-danger" style="margin-top: 10px;">
-                切换全局禁言
-            </button>
-            <p style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">
-                开启后，所有用户将无法使用聊天、评价、脚本功能
-            </p>
+            <button id="toggleGlobalMuteBtn" class="btn btn-danger" style="margin-top: 10px;">切换全局禁言</button>
+            <p style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">开启后，所有用户将无法使用聊天、评价、脚本功能</p>
         </div>
         <div id="adminContent" class="card">仅限owner访问</div>
     </div>
@@ -336,7 +332,7 @@
 <div id="profileModal" class="profile-modal"><div class="profile-container" id="profileContent"></div></div>
 
 <script>
-// ==================== 后端 API 调用版本（修复版） ====================
+// ==================== 修复版 ====================
 const API_BASE = '';
 let currentUser = null, currentRole = null;
 let currentRoom = "general";
@@ -488,6 +484,8 @@ async function renderWhitelist() {
     try {
         const res = await fetch('/api/whitelist');
         let whitelist = await res.json();
+        // 修复：确保是数组
+        if (!Array.isArray(whitelist)) whitelist = [];
         document.getElementById('whitelistUsers').innerHTML = whitelist.map(u => `<span class="tab">${escapeHtml(u)}</span>`).join('');
     } catch(e) { console.error(e); }
 }
@@ -507,25 +505,32 @@ async function login(username, password) {
         const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
         const data = await res.json();
         console.log("登录响应:", data);
+        
         if (data.success) {
-            currentUser = username; currentRole = data.role;
+            currentUser = username;
+            currentRole = data.role;
             currentUserData = { userId: data.userId, avatar: "", isBeauty: data.isBeauty || "A", isMuted: false };
             updateSidebarUI();
             showToast(`欢迎回来，${username}`, false);
+            
+            // 关闭登录弹窗
             document.getElementById('loginModal').classList.remove('active');
+            
             // 强制切换到评价页面
             document.querySelectorAll('.page-content').forEach(p => p.classList.remove('active-page'));
             document.getElementById('reviewsPage').classList.add('active-page');
             document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active-side'));
             const activeLink = Array.from(document.querySelectorAll('.sidebar-link')).find(l => l.dataset.page === 'reviews');
             if (activeLink) activeLink.classList.add('active-side');
-            // 加载数据
-            renderReviews();
-            renderGames();
-            renderChats(currentRoom);
-            renderScripts();
-            renderWhitelist();
-            if (currentRole === 'owner') renderAdminPanel();
+            
+            // 加载所有数据
+            await renderReviews();
+            await renderGames();
+            await renderChats(currentRoom);
+            await renderScripts();
+            await renderWhitelist();
+            if (currentRole === 'owner') await renderAdminPanel();
+            
             return true;
         } else {
             showToast("用户名或密码错误", true);
@@ -576,7 +581,7 @@ function logout() {
     currentUser = null; currentRole = null; currentUserData = null; 
     updateSidebarUI(); 
     showToast("已登出", false); 
-    document.getElementById('loginModal').style.display = 'flex';
+    document.getElementById('loginModal').classList.add('active');
     document.querySelectorAll('.page-content').forEach(p => p.classList.remove('active-page'));
     document.getElementById('reviewsPage').classList.add('active-page');
 }
@@ -776,6 +781,7 @@ document.getElementById('doRegisterBtn')?.addEventListener('click', async () => 
     }
 });
 
+// 初始化
 checkServerStatus();
 updateSidebarUI();
 renderGames();
@@ -783,7 +789,7 @@ renderChats('general');
 renderWhitelist();
 initGlobalMute();
 startAutoRefresh();
-if (!currentUser) document.getElementById('loginModal').style.display = 'flex';
+if (!currentUser) document.getElementById('loginModal').classList.add('active');
 </script>
 
 <!-- ==================== 反调试保护（修复版：不清空页面） ==================== -->
@@ -797,7 +803,6 @@ if (!currentUser) document.getElementById('loginModal').style.display = 'flex';
     function executeLockdown() {
         if (isLocked) return;
         isLocked = true;
-        // 不清空页面，只显示警告
         const warning = document.createElement('div');
         warning.style.cssText = 'position:fixed;top:0;left:0;width:100%;background:#ef4444;color:white;padding:10px;text-align:center;z-index:99999';
         warning.innerHTML = '⚠️ 检测到开发者工具，部分功能可能受限 ⚠️';
