@@ -6,6 +6,7 @@
     <title>LOVESS</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@4/dist/fp.min.js"></script>
     <style>
         :root {
             --primary: #8b5cf6; --primary-light: #a78bfa; --primary-dark: #7c3aed; --primary-glow: rgba(139, 92, 246, 0.2);
@@ -332,7 +333,7 @@
 <div id="profileModal" class="profile-modal"><div class="profile-container" id="profileContent"></div></div>
 
 <script>
-// ==================== 完整修复版 ====================
+// ==================== 三重封禁版 ====================
 const API_BASE = '';
 let currentUser = null, currentRole = null;
 let currentRoom = "general";
@@ -510,9 +511,27 @@ async function addToWhitelist() {
     renderWhitelist();
 }
 
-async function login(username, password) {
+async function login() {
+    const username = document.getElementById('loginUsername').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const msgDiv = document.getElementById('loginMsg');
+    
+    if (!username || !password) {
+        msgDiv.innerHTML = '请填写用户名和密码';
+        return;
+    }
+    msgDiv.innerHTML = '登录中...';
+    
     try {
-        const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
+        const fp = await FingerprintJS.load();
+        const result = await fp.get();
+        const fingerprint = result.visitorId;
+        
+        const res = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password, fingerprint })
+        });
         const data = await res.json();
         console.log("登录响应:", data);
         
@@ -540,31 +559,49 @@ async function login(username, password) {
             
             return true;
         } else {
-            showToast(data.error || "用户名或密码错误", true);
+            msgDiv.innerHTML = data.error || "用户名或密码错误";
             return false;
         }
     } catch(e) {
-        showToast("服务器连接失败: " + e.message, true);
+        msgDiv.innerHTML = "服务器连接失败: " + e.message;
         return false;
     }
 }
 
-async function register(username, password, cardKey, avatarBase64) {
-    if (username.length < 3) { showToast("用户名至少3位", true); return false; }
-    if (password.length < 3) { showToast("密码至少3位", true); return false; }
+async function register() {
+    const username = document.getElementById('regUsername').value.trim();
+    const password = document.getElementById('regPassword').value;
+    const cardKey = document.getElementById('regCard').value.trim();
+    const msgDiv = document.getElementById('regMsg');
+    
+    if (username.length < 3) { msgDiv.innerHTML = '用户名至少3位'; return; }
+    if (password.length < 3) { msgDiv.innerHTML = '密码至少3位'; return; }
+    msgDiv.innerHTML = '注册中...';
+    
     try {
-        const res = await fetch('/api/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password, cardKey }) });
+        const fp = await FingerprintJS.load();
+        const result = await fp.get();
+        const fingerprint = result.visitorId;
+        
+        const res = await fetch('/api/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password, cardKey, fingerprint })
+        });
         const data = await res.json();
+        
         if (data.success) {
-            showToast(`注册成功！`, false);
-            return true;
+            msgDiv.innerHTML = '注册成功！正在登录...';
+            document.getElementById('loginUsername').value = username;
+            document.getElementById('loginPassword').value = password;
+            document.getElementById('loginModal').classList.add('active');
+            document.getElementById('registerModal').classList.remove('active');
+            setTimeout(() => login(), 1000);
         } else {
-            showToast(data.error || "注册失败", true);
-            return false;
+            msgDiv.innerHTML = data.error || "注册失败";
         }
     } catch(e) {
-        showToast("服务器连接失败: " + e.message, true);
-        return false;
+        msgDiv.innerHTML = "服务器连接失败: " + e.message;
     }
 }
 
@@ -578,6 +615,7 @@ async function showUserProfile(username) {
             <div class="profile-avatar"><i class="fas fa-user fa-3x"></i></div>
             <h2>${escapeHtml(username)}</h2><p><strong>ID:</strong> ${user.userId}</p>${beautyBadge}
             <p><strong>角色:</strong> ${user.role || '用户'}</p><p><strong>注册时间:</strong> ${new Date(user.createdAt).toLocaleString()}</p>
+            <p><strong>设备指纹:</strong> ${user.fingerprint ? user.fingerprint.substring(0, 20) + '...' : '无'}</p>
             <button class="btn btn-secondary close-profile" onclick="document.getElementById('profileModal').classList.remove('active')">关闭</button>
         `;
         document.getElementById('profileModal').classList.add('active');
@@ -615,7 +653,7 @@ async function renderAdminPanel() {
         let ips = await ipsRes.json();
         const bannedRes = await fetch('/api/admin/banned');
         let bannedData = await bannedRes.json();
-        const bannedIPs = new Set(bannedData.bannedIPs || []);
+        const bannedIPsSet = new Set(bannedData.bannedIPs || []);
         
         let container = document.getElementById('adminContent');
         container.innerHTML = `
@@ -624,6 +662,9 @@ async function renderAdminPanel() {
             
             <h3 style="margin-top:20px;">IP 记录与封禁管理</h3>
             <div id="ipMgmt" style="max-height:300px;overflow-y:auto;margin-bottom:20px;"></div>
+            
+            <h3 style="margin-top:20px;">设备指纹封禁</h3>
+            <div id="fingerprintMgmt" style="margin-bottom:20px;"></div>
             
             <h3 style="margin-top:20px;">用户管理</h3>
             <div id="userMgmt"></div>
@@ -641,19 +682,44 @@ async function renderAdminPanel() {
         // IP 管理
         let ipHtml = '<div style="border:1px solid #3a3168;border-radius:12px;padding:10px;">';
         for (const item of ips) {
-            const isBanned = bannedIPs.has(item.ip);
-            ipHtml += `<div class="admin-row" style="border-bottom:1px solid #333;padding:8px">
-                <span><strong>${escapeHtml(item.username || '未知')}</strong> | IP: ${item.ip} | 请求: ${item.requests || 0}次 | 最后: ${item.lastSeen || '未知'}</span>
+            if (item.type === 'ip') {
+                const isBanned = bannedIPsSet.has(item.ip);
+                ipHtml += `<div class="admin-row" style="border-bottom:1px solid #333;padding:8px">
+                    <span><strong>IP: ${item.ip}</strong> | 请求: ${item.requests || 0}次 | 最后: ${item.lastSeen || '未知'}</span>
+                    <div>
+                        ${!isBanned ? 
+                            `<button class="btn-danger ban-btn" onclick="banIP('${item.ip}')">封禁IP</button>` :
+                            `<button class="btn-success ban-btn" onclick="unbanIP('${item.ip}')">解封IP</button>`
+                        }
+                    </div>
+                </div>`;
+            }
+        }
+        ipHtml += '</div>';
+        document.getElementById('ipMgmt').innerHTML = ipHtml;
+        
+        // 设备指纹管理
+        let fingerprintHtml = '<div style="border:1px solid #3a3168;border-radius:12px;padding:10px;">';
+        const uniqueFingerprints = new Map();
+        for (const user of users) {
+            if (user.fingerprint && user.fingerprint !== 'unknown' && user.fingerprint.length > 10) {
+                uniqueFingerprints.set(user.fingerprint, user.name);
+            }
+        }
+        for (const [fp, username] of uniqueFingerprints) {
+            const isBanned = bannedData.bannedFingerprints?.includes(fp);
+            fingerprintHtml += `<div class="admin-row" style="border-bottom:1px solid #333;padding:8px">
+                <span><strong>用户: ${escapeHtml(username)}</strong><br><small style="font-size:10px">指纹: ${fp.substring(0, 24)}...</small></span>
                 <div>
                     ${!isBanned ? 
-                        `<button class="btn-danger ban-btn" onclick="banIP('${item.ip}')">封禁IP</button>` :
-                        `<button class="btn-success ban-btn" onclick="unbanIP('${item.ip}')">解封IP</button>`
+                        `<button class="btn-danger ban-btn" onclick="banFingerprint('${fp}')">封禁设备</button>` :
+                        `<button class="btn-success ban-btn" onclick="unbanFingerprint('${fp}')">解封设备</button>`
                     }
                 </div>
             </div>`;
         }
-        ipHtml += '</div>';
-        document.getElementById('ipMgmt').innerHTML = ipHtml;
+        fingerprintHtml += '</div>';
+        document.getElementById('fingerprintMgmt').innerHTML = fingerprintHtml || '<div>暂无设备指纹记录</div>';
         
         // 用户管理
         document.getElementById('userMgmt').innerHTML = users.map(user => `
@@ -664,7 +730,7 @@ async function renderAdminPanel() {
                     <button class="btn-secondary ban-btn" onclick="toggleMuteUser('${escapeHtml(user.name)}')">${user.isMuted ? '解除禁言' : '禁言'}</button>
                     <button class="btn-success ban-btn" onclick="setBeautyUser('${escapeHtml(user.name)}', 'A')">A靓号</button>
                     <button class="btn ban-btn" style="background:#ff3366;" onclick="setBeautyUser('${escapeHtml(user.name)}', 'B')">B靓号</button>
-                    <button class="btn-danger ban-btn" onclick="banUserAndIP('${escapeHtml(user.name)}', '${user.registerIP || ''}')">封禁账号+IP</button>
+                    <button class="btn-danger ban-btn" onclick="banUserAndIP('${escapeHtml(user.name)}', '${user.registerIP}', '${user.fingerprint}')">三重封禁</button>
                 </div>
             </div>
         `).join('');
@@ -688,16 +754,29 @@ window.unbanIP = async (ip) => {
     renderAdminPanel();
 };
 
-window.banUserAndIP = async (username, ip) => {
-    if (!confirm(`确定要封禁用户 "${username}" 及其 IP "${ip}" 吗？`)) return;
+window.banFingerprint = async (fingerprint) => {
+    if (!confirm(`确定要封禁该设备指纹吗？用户换VPN、换浏览器都没用。`)) return;
+    await fetch('/api/admin/banFingerprint', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fingerprint }) });
+    showToast(`已封禁设备指纹`, false);
+    renderAdminPanel();
+};
+
+window.unbanFingerprint = async (fingerprint) => {
+    await fetch('/api/admin/unbanFingerprint', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fingerprint }) });
+    showToast(`已解封设备指纹`);
+    renderAdminPanel();
+};
+
+window.banUserAndIP = async (username, ip, fingerprint) => {
+    if (!confirm(`确定要三重封禁用户 "${username}" 及其 IP 和设备指纹吗？`)) return;
     const res = await fetch('/api/admin/banUserAndIP', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, ip })
+        body: JSON.stringify({ username, ip, fingerprint })
     });
     const data = await res.json();
     if (data.success) {
-        showToast(`已封禁用户 ${username} 及其 IP`, false);
+        showToast(`已三重封禁用户 ${username}`, false);
         renderAdminPanel();
     } else {
         showToast('封禁失败', true);
@@ -824,6 +903,8 @@ window.rejectScript = rejectScript;
 window.deleteChatMsg = deleteChatMsg;
 window.banIP = banIP;
 window.unbanIP = unbanIP;
+window.banFingerprint = banFingerprint;
+window.unbanFingerprint = unbanFingerprint;
 window.banUserAndIP = banUserAndIP;
 
 document.getElementById('sendChatBtn')?.addEventListener('click', sendChat);
@@ -845,20 +926,11 @@ document.getElementById('clearExecutorBtn')?.addEventListener('click', () => { d
 document.getElementById('injectBtn')?.addEventListener('click', () => { if(!checkAccess()) return; showToast("注入器已连接(演示)", false); });
 document.getElementById('toggleGlobalMuteBtn')?.addEventListener('click', toggleGlobalMute);
 
-document.getElementById('doLoginBtn')?.addEventListener('click', async () => { let u = document.getElementById('loginUsername').value.trim(); let p = document.getElementById('loginPassword').value; await login(u, p); });
+document.getElementById('doLoginBtn')?.addEventListener('click', login);
 document.getElementById('closeLoginBtn')?.addEventListener('click', () => document.getElementById('loginModal').classList.remove('active'));
 document.getElementById('toRegisterBtn')?.addEventListener('click', () => { document.getElementById('loginModal').classList.remove('active'); document.getElementById('registerModal').classList.add('active'); });
 document.getElementById('closeRegisterBtn')?.addEventListener('click', () => document.getElementById('registerModal').classList.remove('active'));
-document.getElementById('doRegisterBtn')?.addEventListener('click', async () => {
-    let u = document.getElementById('regUsername').value.trim();
-    let p = document.getElementById('regPassword').value.trim();
-    let c = document.getElementById('regCard').value.trim();
-    if (!u || !p) { showToast("请填写用户名和密码", true); return; }
-    if (await register(u, p, c, "")) {
-        document.getElementById('registerModal').classList.remove('active');
-        await login(u, p);
-    }
-});
+document.getElementById('doRegisterBtn')?.addEventListener('click', register);
 
 checkServerStatus();
 updateSidebarUI();
