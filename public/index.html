@@ -336,7 +336,7 @@
 <div id="profileModal" class="profile-modal"><div class="profile-container" id="profileContent"></div></div>
 
 <script>
-// ==================== 后端 API 调用版本（无 Token）====================
+// ==================== 后端 API 调用版本 ====================
 const API_BASE = '';
 let currentUser = null, currentRole = null;
 let currentRoom = "general";
@@ -345,95 +345,13 @@ let autoRefreshTimer = null;
 let currentUserData = null;
 let globalMuteEnabled = false;
 
-// ==================== 全局禁言系统 ====================
-async function initGlobalMute() {
-    try {
-        const res = await fetch('/api/admin/globalMuteStatus');
-        const data = await res.json();
-        globalMuteEnabled = data.enabled;
-        if (globalMuteEnabled) {
-            disableAllInputs();
-            showToast("系统维护中，聊天、评价、脚本功能暂时关闭");
-        } else {
-            enableAllInputs();
-        }
-    } catch(e) { console.error(e); }
-    return globalMuteEnabled;
-}
-
-function disableAllInputs() {
-    const chatInput = document.getElementById('chatInput');
-    if (chatInput) { chatInput.disabled = true; chatInput.placeholder = '聊天功能已关闭'; chatInput.style.opacity = '0.5'; }
-    const sendBtn = document.getElementById('sendChatBtn');
-    if (sendBtn) { sendBtn.disabled = true; sendBtn.style.opacity = '0.5'; }
-    const reviewInput = document.getElementById('newReviewContent');
-    if (reviewInput) { reviewInput.disabled = true; reviewInput.placeholder = '评价功能已关闭'; reviewInput.style.opacity = '0.5'; }
-    const submitBtn = document.getElementById('submitReviewBtn');
-    if (submitBtn) { submitBtn.disabled = true; submitBtn.style.opacity = '0.5'; }
-    const reviewRating = document.getElementById('newReviewRating');
-    if (reviewRating) { reviewRating.disabled = true; reviewRating.style.opacity = '0.5'; }
-    const scriptName = document.getElementById('scriptName');
-    if (scriptName) { scriptName.disabled = true; scriptName.placeholder = '脚本上传已关闭'; scriptName.style.opacity = '0.5'; }
-    const scriptDesc = document.getElementById('scriptDesc');
-    if (scriptDesc) { scriptDesc.disabled = true; scriptDesc.placeholder = '脚本上传已关闭'; scriptDesc.style.opacity = '0.5'; }
-    const uploadBtn = document.getElementById('uploadScriptBtn');
-    if (uploadBtn) { uploadBtn.disabled = true; uploadBtn.style.opacity = '0.5'; }
-}
-
-function enableAllInputs() {
-    const chatInput = document.getElementById('chatInput');
-    if (chatInput) { chatInput.disabled = false; chatInput.placeholder = '输入消息...'; chatInput.style.opacity = '1'; }
-    const sendBtn = document.getElementById('sendChatBtn');
-    if (sendBtn) { sendBtn.disabled = false; sendBtn.style.opacity = '1'; }
-    const reviewInput = document.getElementById('newReviewContent');
-    if (reviewInput) { reviewInput.disabled = false; reviewInput.placeholder = '分享你的使用体验...'; reviewInput.style.opacity = '1'; }
-    const submitBtn = document.getElementById('submitReviewBtn');
-    if (submitBtn) { submitBtn.disabled = false; submitBtn.style.opacity = '1'; }
-    const reviewRating = document.getElementById('newReviewRating');
-    if (reviewRating) { reviewRating.disabled = false; reviewRating.style.opacity = '1'; }
-    const scriptName = document.getElementById('scriptName');
-    if (scriptName) { scriptName.disabled = false; scriptName.placeholder = '脚本名称'; scriptName.style.opacity = '1'; }
-    const scriptDesc = document.getElementById('scriptDesc');
-    if (scriptDesc) { scriptDesc.disabled = false; scriptDesc.placeholder = '脚本描述'; scriptDesc.style.opacity = '1'; }
-    const uploadBtn = document.getElementById('uploadScriptBtn');
-    if (uploadBtn) { uploadBtn.disabled = false; uploadBtn.style.opacity = '1'; }
-}
-
-async function toggleGlobalMute() {
-    if (currentRole !== 'owner') { showToast("只有管理员可以操作", true); return; }
-    const res = await fetch('/api/admin/toggleGlobalMute', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
-    const data = await res.json();
-    globalMuteEnabled = data.enabled;
-    if (globalMuteEnabled) {
-        disableAllInputs();
-        showToast("全局禁言已开启，所有用户无法使用聊天/评价/脚本");
-    } else {
-        enableAllInputs();
-        showToast("全局禁言已关闭，所有功能恢复正常");
-    }
-    updateAdminMuteStatus();
-}
-
-async function updateAdminMuteStatus() {
-    const statusDiv = document.getElementById('globalMuteStatus');
-    if (!statusDiv) return;
-    const res = await fetch('/api/admin/globalMuteStatus');
-    const data = await res.json();
-    const isMuted = data.enabled;
-    statusDiv.innerHTML = `<div class="card" style="display: inline-block; padding: 8px 20px;">当前状态: ${isMuted ? '<span style="background:#ef4444; padding:4px 12px; border-radius:20px;">全局禁言已开启</span>' : '<span style="background:#10b981; padding:4px 12px; border-radius:20px;">全局禁言已关闭</span>'}</div>`;
-}
-
-const LOCAL_GAMES = [
-    { name: "luau", players: 6, placeId: "125462571840934", link: "https://www.roblox.com/games/125462571840934", description: "luau游戏", rating: 4.5 },
-    { name: "月跑小镇", players: 230, placeId: "88063017898040", link: "https://www.roblox.com/games/88063017898040", description: "月跑小镇", rating: 4.7 },
-    { name: "HBPLA|湖北警戒区", players: 47, placeId: "133580699283141", link: "https://www.roblox.com/games/133580699283141", description: "湖北警戒区", rating: 4.6 }
-];
-
 function showToast(msg, isError) {
     let t = document.createElement('div'); t.className = 'toast';
     t.innerHTML = `<i class="fas ${isError ? 'fa-exclamation-triangle' : 'fa-check-circle'}"></i> ${msg}`;
     document.body.appendChild(t); setTimeout(() => t.remove(), 2500);
 }
+
+function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'})[m]); }
 
 function getBeautyBadgeHtml(userId, isBeauty) {
     if (isBeauty === "B") {
@@ -444,8 +362,24 @@ function getBeautyBadgeHtml(userId, isBeauty) {
     return "";
 }
 
-function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'})[m]); }
+// 检查服务器状态
+async function checkServerStatus() {
+    try {
+        const res = await fetch('/api/reviews');
+        if (res.ok) {
+            document.getElementById('serverStatus').innerHTML = '服务器已连接';
+            document.getElementById('serverStatus').className = 'server-status success';
+        } else {
+            document.getElementById('serverStatus').innerHTML = '服务器异常';
+            document.getElementById('serverStatus').className = 'server-status error';
+        }
+    } catch(e) {
+        document.getElementById('serverStatus').innerHTML = '连接失败';
+        document.getElementById('serverStatus').className = 'server-status error';
+    }
+}
 
+// 评价
 async function renderReviews() {
     try {
         const res = await fetch('/api/reviews');
@@ -477,6 +411,7 @@ window.deleteReview = async (id) => {
     renderReviews();
 };
 
+// 游戏
 async function renderGames() {
     let container = document.getElementById('gamesContainer');
     if (!container) return;
@@ -484,12 +419,16 @@ async function renderGames() {
         container.innerHTML = `<div class="card"><p>需要登录才能访问游戏库</p><button class="btn btn-secondary" onclick="document.getElementById('loginModal').classList.add('active')">立即登录/注册</button></div>`;
         return;
     }
-    let games = githubGames.length > 0 ? githubGames : LOCAL_GAMES;
-    container.innerHTML = games.map(game => `<div class="game-card"><h3>${escapeHtml(game.name)}</h3><div class="game-player-count"><i class="fas fa-users"></i> 在线人数: ${game.players.toLocaleString()}</div><p>${escapeHtml(game.description)}</p><button class="btn btn-secondary" onclick="window.open('${game.link}','_blank')">开始游戏</button></div>`).join('');
-    document.getElementById('statGameCount').innerText = games.length;
-    document.getElementById('statTotalPlayers').innerText = games.reduce((s,g)=>s+(g.players||0),0).toLocaleString();
+    try {
+        const res = await fetch('/api/games');
+        let games = await res.json();
+        container.innerHTML = games.map(game => `<div class="game-card"><h3>${escapeHtml(game.name)}</h3><div class="game-player-count"><i class="fas fa-users"></i> 在线人数: ${game.players}</div><p>${escapeHtml(game.description)}</p><button class="btn btn-secondary" onclick="window.open('${game.link}','_blank')">开始游戏</button></div>`).join('');
+        document.getElementById('statGameCount').innerText = games.length;
+        document.getElementById('statTotalPlayers').innerText = games.reduce((s,g)=>s+(g.players||0),0);
+    } catch(e) { console.error(e); }
 }
 
+// 聊天
 async function renderChats(room) {
     try {
         const res = await fetch(`/api/chats/${room}`);
@@ -513,7 +452,7 @@ async function renderChats(room) {
 async function sendChat() {
     let inp = document.getElementById('chatInput');
     if (!inp.value.trim()) return;
-    if (!currentUser) { showToast("请先登录", "error"); document.getElementById('loginModal').classList.add('active'); return; }
+    if (!currentUser) { showToast("请先登录", true); document.getElementById('loginModal').classList.add('active'); return; }
     if (globalMuteEnabled && currentRole !== 'owner') { showToast("系统维护中，聊天功能已关闭", true); return; }
     await fetch('/api/chat', {
         method: 'POST',
@@ -524,6 +463,7 @@ async function sendChat() {
     inp.value = '';
 }
 
+// 脚本
 async function renderScripts() {
     try {
         const res = await fetch('/api/scripts');
@@ -549,41 +489,133 @@ async function uploadScript() {
     if (currentRole === 'owner') renderAdminPanel();
 }
 
+// 白名单
+async function renderWhitelist() {
+    try {
+        const res = await fetch('/api/whitelist');
+        let whitelist = await res.json();
+        document.getElementById('whitelistUsers').innerHTML = whitelist.map(u => `<span class="tab">${escapeHtml(u)}</span>`).join('');
+    } catch(e) { console.error(e); }
+}
+
+async function addToWhitelist() {
+    if (currentRole !== 'owner') { showToast("仅管理员可操作", true); return; }
+    let name = document.getElementById('whitelistName').value.trim();
+    if (!name) { showToast("请输入用户名", true); return; }
+    await fetch('/api/whitelist/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+    showToast(`${name} 已添加至白名单`, false);
+    document.getElementById('whitelistName').value = '';
+    renderWhitelist();
+}
+
+// 用户
+async function login(username, password) {
+    try {
+        const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
+        const data = await res.json();
+        if (data.success) {
+            currentUser = username; currentRole = data.role;
+            currentUserData = { userId: data.userId, avatar: "", isBeauty: data.isBeauty || "A", isMuted: false };
+            updateSidebarUI();
+            showToast(`欢迎回来，${username}`, false);
+            document.getElementById('loginModal').classList.remove('active');
+            switchPage('reviews');
+            return true;
+        } else {
+            showToast("用户名或密码错误", true);
+            return false;
+        }
+    } catch(e) {
+        showToast("服务器连接失败", true);
+        return false;
+    }
+}
+
+async function register(username, password, cardKey, avatarBase64) {
+    if (username.length < 3) { showToast("用户名至少3位", true); return false; }
+    if (password.length < 3) { showToast("密码至少3位", true); return false; }
+    try {
+        const res = await fetch('/api/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password, cardKey }) });
+        const data = await res.json();
+        if (data.success) {
+            showToast(`注册成功！`, false);
+            return true;
+        } else {
+            showToast(data.error || "注册失败", true);
+            return false;
+        }
+    } catch(e) {
+        showToast("服务器连接失败", true);
+        return false;
+    }
+}
+
+async function showUserProfile(username) {
+    try {
+        const res = await fetch(`/api/user/${username}`);
+        const user = await res.json();
+        if (!user) { showToast("用户不存在", true); return; }
+        const beautyBadge = getBeautyBadgeHtml(user.userId, user.isBeauty);
+        document.getElementById('profileContent').innerHTML = `
+            <div class="profile-avatar"><i class="fas fa-user fa-3x"></i></div>
+            <h2>${escapeHtml(username)}</h2><p><strong>ID:</strong> ${user.userId}</p>${beautyBadge}
+            <p><strong>角色:</strong> ${user.role || '用户'}</p><p><strong>注册时间:</strong> ${new Date(user.createdAt).toLocaleString()}</p>
+            <button class="btn btn-secondary close-profile" onclick="document.getElementById('profileModal').classList.remove('active')">关闭</button>
+        `;
+        document.getElementById('profileModal').classList.add('active');
+    } catch(e) { showToast("获取用户信息失败", true); }
+}
+
+function logout() { currentUser = null; currentRole = null; currentUserData = null; updateSidebarUI(); showToast("已登出", false); switchPage('reviews'); }
+
+function updateSidebarUI() {
+    let btn = document.getElementById('sidebarUserBtn');
+    if (btn) {
+        if (currentUser) { btn.innerHTML = `<i class="fas fa-user"></i> ${currentUser} (登出)`; btn.onclick = () => logout(); }
+        else { btn.innerHTML = "<i class='fas fa-sign-in-alt'></i> 登录/注册"; btn.onclick = () => document.getElementById('loginModal').classList.add('active'); }
+    }
+}
+
+// 管理员
 async function renderAdminPanel() {
     if (currentRole !== 'owner') return;
-    const usersRes = await fetch('/api/admin/users');
-    let users = await usersRes.json();
-    const scriptsRes = await fetch('/api/admin/pending');
-    let pending = await scriptsRes.json();
-    const chatsRes = await fetch('/api/admin/chats');
-    let chats = await chatsRes.json();
-    const reviewsRes = await fetch('/api/reviews');
-    let reviews = await reviewsRes.json();
-    let container = document.getElementById('adminContent');
-    container.innerHTML = `
-        <h3>系统统计</h3>
-        <p>总用户: ${users.length} | 脚本: ${pending.length} | 评价: ${reviews.length}</p>
-        <h3 style="margin-top:20px;">用户管理</h3>
-        <div id="userMgmt"></div>
-        <h3 style="margin-top:20px;">评价管理</h3>
-        <div id="reviewsMgmt"></div>
-        <h3 style="margin-top:20px;">待审核脚本</h3>
-        <div id="pendingScripts"></div>
-        <h3 style="margin-top:20px;">最近聊天记录</h3>
-        <div id="chatMgmt"></div>
-    `;
-    document.getElementById('userMgmt').innerHTML = users.map(user => `
-        <div class="admin-row">
-            <span><strong>${escapeHtml(user.name)}</strong> (${user.role}) ${user.banned ? '[已封禁]' : ''} ${user.isMuted ? '[已禁言]' : ''}</span>
-            <div>
-                <button class="btn-secondary ban-btn" onclick="toggleBanUser('${escapeHtml(user.name)}')">${user.banned ? '解封' : '封禁'}</button>
-                <button class="btn-secondary ban-btn" onclick="toggleMuteUser('${escapeHtml(user.name)}')">${user.isMuted ? '解除禁言' : '禁言'}</button>
+    try {
+        const usersRes = await fetch('/api/admin/users');
+        let users = await usersRes.json();
+        const scriptsRes = await fetch('/api/admin/pending');
+        let pending = await scriptsRes.json();
+        const chatsRes = await fetch('/api/admin/chats');
+        let chats = await chatsRes.json();
+        const reviewsRes = await fetch('/api/reviews');
+        let reviews = await reviewsRes.json();
+        let container = document.getElementById('adminContent');
+        container.innerHTML = `
+            <h3>系统统计</h3>
+            <p>总用户: ${users.length} | 待审核脚本: ${pending.length} | 评价: ${reviews.length}</p>
+            <h3 style="margin-top:20px;">用户管理</h3>
+            <div id="userMgmt"></div>
+            <h3 style="margin-top:20px;">评价管理</h3>
+            <div id="reviewsMgmt"></div>
+            <h3 style="margin-top:20px;">待审核脚本</h3>
+            <div id="pendingScripts"></div>
+            <h3 style="margin-top:20px;">最近聊天记录</h3>
+            <div id="chatMgmt"></div>
+        `;
+        document.getElementById('userMgmt').innerHTML = users.map(user => `
+            <div class="admin-row">
+                <span><strong>${escapeHtml(user.name)}</strong> (${user.role}) ${user.banned ? '[已封禁]' : ''} ${user.isMuted ? '[已禁言]' : ''}</span>
+                <div>
+                    <button class="btn-secondary ban-btn" onclick="toggleBanUser('${escapeHtml(user.name)}')">${user.banned ? '解封' : '封禁'}</button>
+                    <button class="btn-secondary ban-btn" onclick="toggleMuteUser('${escapeHtml(user.name)}')">${user.isMuted ? '解除禁言' : '禁言'}</button>
+                    <button class="btn-success ban-btn" onclick="setBeautyUser('${escapeHtml(user.name)}', 'A')">A靓号</button>
+                    <button class="btn ban-btn" style="background:#ff3366;" onclick="setBeautyUser('${escapeHtml(user.name)}', 'B')">B靓号</button>
+                </div>
             </div>
-        </div>
-    `).join('');
-    document.getElementById('reviewsMgmt').innerHTML = (reviews || []).map(r => `<div class="admin-row"><div><strong>${escapeHtml(r.name)}</strong> ${'★'.repeat(r.rating)}<br>${escapeHtml(r.text)}</div><button class="btn-danger ban-btn" onclick="deleteReview(${r.id})">删除</button></div>`).join('');
-    document.getElementById('pendingScripts').innerHTML = pending.length === 0 ? '<div>暂无待审核脚本</div>' : pending.map(s => `<div class="admin-row"><div><strong>${escapeHtml(s.name)}</strong><br>${escapeHtml(s.desc)}<br>作者: ${escapeHtml(s.author)}</div><div><button class="btn-success ban-btn" onclick="approveScript(${s.id})">通过</button><button class="btn-danger ban-btn" onclick="rejectScript(${s.id})">拒绝</button></div></div>`).join('');
-    document.getElementById('chatMgmt').innerHTML = (chats || []).slice(-20).reverse().map(c => `<div class="admin-row"><span><strong>${escapeHtml(c.user)}</strong>: ${escapeHtml(c.text.substring(0, 50))}</span><button class="btn-danger ban-btn" onclick="deleteChatMsg(${c.id})">删除</button></div>`).join('');
+        `).join('');
+        document.getElementById('reviewsMgmt').innerHTML = (reviews || []).map(r => `<div class="admin-row"><div><strong>${escapeHtml(r.name)}</strong> ${'★'.repeat(r.rating)}<br>${escapeHtml(r.text)}</div><button class="btn-danger ban-btn" onclick="deleteReview(${r.id})">删除</button></div>`).join('');
+        document.getElementById('pendingScripts').innerHTML = pending.length === 0 ? '<div>暂无待审核脚本</div>' : pending.map(s => `<div class="admin-row"><div><strong>${escapeHtml(s.name)}</strong><br>${escapeHtml(s.desc)}<br>作者: ${escapeHtml(s.author)}</div><div><button class="btn-success ban-btn" onclick="approveScript(${s.id})">通过</button><button class="btn-danger ban-btn" onclick="rejectScript(${s.id})">拒绝</button></div></div>`).join('');
+        document.getElementById('chatMgmt').innerHTML = (chats || []).slice(-20).reverse().map(c => `<div class="admin-row"><span><strong>${escapeHtml(c.user)}</strong>: ${escapeHtml(c.text.substring(0, 50))}</span><button class="btn-danger ban-btn" onclick="deleteChatMsg(${c.id})">删除</button></div>`).join('');
+    } catch(e) { console.error(e); }
 }
 
 window.toggleMuteUser = async (username) => {
@@ -623,86 +655,39 @@ window.deleteChatMsg = async (id) => {
     renderChats(currentRoom);
 };
 
-async function renderWhitelist() {
+// 全局禁言
+async function initGlobalMute() {
     try {
-        const res = await fetch('/api/whitelist');
-        let whitelist = await res.json();
-        document.getElementById('whitelistUsers').innerHTML = whitelist.map(u => `<span class="tab">${escapeHtml(u)}</span>`).join('');
+        const res = await fetch('/api/admin/globalMuteStatus');
+        const data = await res.json();
+        globalMuteEnabled = data.enabled;
+        updateAdminMuteStatus();
     } catch(e) { console.error(e); }
 }
 
-async function addToWhitelist() {
-    if (currentRole !== 'owner') { showToast("仅管理员可操作", true); return; }
-    let name = document.getElementById('whitelistName').value.trim();
-    if (!name) { showToast("请输入用户名", true); return; }
-    await fetch('/api/whitelist/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
-    showToast(`${name} 已添加至白名单`, false);
-    document.getElementById('whitelistName').value = '';
-    renderWhitelist();
+async function updateAdminMuteStatus() {
+    const statusDiv = document.getElementById('globalMuteStatus');
+    if (!statusDiv) return;
+    try {
+        const res = await fetch('/api/admin/globalMuteStatus');
+        const data = await res.json();
+        const isMuted = data.enabled;
+        statusDiv.innerHTML = `<div class="card" style="display: inline-block; padding: 8px 20px;">当前状态: ${isMuted ? '<span style="background:#ef4444; padding:4px 12px; border-radius:20px;">全局禁言已开启</span>' : '<span style="background:#10b981; padding:4px 12px; border-radius:20px;">全局禁言已关闭</span>'}</div>`;
+    } catch(e) { console.error(e); }
 }
 
-async function showUserProfile(username) {
-    const res = await fetch(`/api/user/${username}`);
-    const user = await res.json();
-    if (!user) { showToast("用户不存在", true); return; }
-    const beautyBadge = getBeautyBadgeHtml(user.userId, user.isBeauty);
-    document.getElementById('profileContent').innerHTML = `
-        <div class="profile-avatar"><i class="fas fa-user fa-3x"></i></div>
-        <h2>${escapeHtml(username)}</h2><p><strong>ID:</strong> ${user.userId}</p>${beautyBadge}
-        <p><strong>角色:</strong> ${user.role || '用户'}</p><p><strong>注册时间:</strong> ${new Date(user.createdAt).toLocaleString()}</p>
-        <button class="btn btn-secondary close-profile" onclick="document.getElementById('profileModal').classList.remove('active')">关闭</button>
-    `;
-    document.getElementById('profileModal').classList.add('active');
+async function toggleGlobalMute() {
+    if (currentRole !== 'owner') { showToast("只有管理员可以操作", true); return; }
+    try {
+        const res = await fetch('/api/admin/toggleGlobalMute', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+        const data = await res.json();
+        globalMuteEnabled = data.enabled;
+        updateAdminMuteStatus();
+        showToast(globalMuteEnabled ? "全局禁言已开启" : "全局禁言已关闭", false);
+    } catch(e) { showToast("操作失败", true); }
 }
 
-async function login(username, password) {
-    const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
-    const data = await res.json();
-    if (data.success) {
-        currentUser = username; currentRole = data.role;
-        currentUserData = { userId: data.userId, avatar: "", isBeauty: data.isBeauty || "A", isMuted: false };
-        updateSidebarUI(); showToast(`欢迎回来，${username}`, false);
-        return true;
-    }
-    showToast("登录失败", true);
-    return false;
-}
-
-async function register(username, password, cardKey, avatarBase64) {
-    if (username.length < 3) { showToast("用户名至少3位", true); return false; }
-    if (password.length < 3) { showToast("密码至少3位", true); return false; }
-    const res = await fetch('/api/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password, cardKey }) });
-    const data = await res.json();
-    if (data.success) {
-        showToast(`注册成功！`, false);
-        return true;
-    } else {
-        showToast(data.error || "注册失败", true);
-        return false;
-    }
-}
-
-function logout() { currentUser = null; currentRole = null; currentUserData = null; updateSidebarUI(); showToast("已登出", false); switchPage('reviews'); }
-
-function updateSidebarUI() {
-    let btn = document.getElementById('sidebarUserBtn');
-    if (btn) {
-        if (currentUser) { btn.innerHTML = `<i class="fas fa-user"></i> ${currentUser} (登出)`; btn.onclick = () => logout(); }
-        else { btn.innerHTML = "<i class='fas fa-sign-in-alt'></i> 登录/注册"; btn.onclick = () => document.getElementById('loginModal').classList.add('active'); }
-    }
-}
-
-function startAutoRefresh() {
-    if (autoRefreshTimer) clearInterval(autoRefreshTimer);
-    autoRefreshTimer = setInterval(async () => {
-        if (document.getElementById('chatPage')?.classList.contains('active-page')) await renderChats(currentRoom);
-        if (document.getElementById('reviewsPage')?.classList.contains('active-page')) await renderReviews();
-        if (document.getElementById('scriptsPage')?.classList.contains('active-page')) await renderScripts();
-        if (document.getElementById('whitelistPage')?.classList.contains('active-page')) await renderWhitelist();
-        if (document.getElementById('adminPage')?.classList.contains('active-page') && currentRole === 'owner') await renderAdminPanel();
-    }, 3000);
-}
-
+// 页面切换
 function switchPage(pageId) {
     if ((pageId === 'games' || pageId === 'whitelist' || pageId === 'executor') && !currentUser) { showToast("请先登录", true); pageId = 'reviews'; }
     if (pageId === 'admin' && currentRole !== 'owner') { showToast("只有管理员可以访问管理面板", true); pageId = 'reviews'; }
@@ -713,12 +698,23 @@ function switchPage(pageId) {
     let activeLink = Array.from(document.querySelectorAll('.sidebar-link')).find(l => l.dataset.page === pageId);
     if (activeLink) activeLink.classList.add('active-side');
     closeSidebar();
-    if (pageId === 'reviews') { renderReviews(); }
+    if (pageId === 'reviews') renderReviews();
     if (pageId === 'games') renderGames();
     if (pageId === 'chat') { renderChats(currentRoom); setTimeout(() => document.getElementById('chatInput')?.focus(), 100); }
     if (pageId === 'scripts') renderScripts();
     if (pageId === 'whitelist') renderWhitelist();
     if (pageId === 'admin' && currentRole === 'owner') renderAdminPanel();
+}
+
+function startAutoRefresh() {
+    if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+    autoRefreshTimer = setInterval(async () => {
+        if (document.getElementById('chatPage')?.classList.contains('active-page')) await renderChats(currentRoom);
+        if (document.getElementById('reviewsPage')?.classList.contains('active-page')) await renderReviews();
+        if (document.getElementById('scriptsPage')?.classList.contains('active-page')) await renderScripts();
+        if (document.getElementById('whitelistPage')?.classList.contains('active-page')) await renderWhitelist();
+        if (document.getElementById('adminPage')?.classList.contains('active-page') && currentRole === 'owner') await renderAdminPanel();
+    }, 5000);
 }
 
 const sidebarEl = document.getElementById('sidebar'), overlay = document.getElementById('sidebarOverlay');
@@ -750,11 +746,12 @@ document.getElementById('refreshGamesBtn')?.addEventListener('click', async () =
 document.getElementById('uploadScriptBtn')?.addEventListener('click', uploadScript);
 document.getElementById('addWhitelistBtn')?.addEventListener('click', addToWhitelist);
 document.getElementById('submitReviewBtn')?.addEventListener('click', submitReview);
-document.getElementById('executeBtn')?.addEventListener('click', () => { let code = document.getElementById('executorCode').value; if(code.trim()){ document.getElementById('executorLog').innerHTML += `\n> 执行: ${code.substring(0,60)}...`; showToast("已执行", false); } else showToast("请输入require", true); });
+document.getElementById('executeBtn')?.addEventListener('click', () => { let code = document.getElementById('executorCode').value; if(code.trim()){ document.getElementById('executorLog').innerHTML += `\n> 执行: ${code.substring(0,60)}...`; showToast("已执行", false); } else showToast("请输入代码", true); });
 document.getElementById('clearExecutorBtn')?.addEventListener('click', () => { document.getElementById('executorCode').value = ''; document.getElementById('executorLog').innerHTML = '控制台已清空'; });
-document.getElementById('injectBtn')?.addEventListener('click', () => { if(!currentUser) { showToast("请先登录", true); return; } showToast("注入器已连接", false); });
+document.getElementById('injectBtn')?.addEventListener('click', () => { if(!currentUser) { showToast("请先登录", true); return; } showToast("注入器已连接(演示)", false); });
+document.getElementById('toggleGlobalMuteBtn')?.addEventListener('click', toggleGlobalMute);
 
-document.getElementById('doLoginBtn')?.addEventListener('click', async () => { let u = document.getElementById('loginUsername').value.trim(); let p = document.getElementById('loginPassword').value; if(await login(u,p)){ document.getElementById('loginModal').classList.remove('active'); switchPage('reviews'); startAutoRefresh(); } });
+document.getElementById('doLoginBtn')?.addEventListener('click', async () => { let u = document.getElementById('loginUsername').value.trim(); let p = document.getElementById('loginPassword').value; await login(u, p); });
 document.getElementById('closeLoginBtn')?.addEventListener('click', () => document.getElementById('loginModal').classList.remove('active'));
 document.getElementById('toRegisterBtn')?.addEventListener('click', () => { document.getElementById('loginModal').classList.remove('active'); document.getElementById('registerModal').classList.add('active'); });
 document.getElementById('closeRegisterBtn')?.addEventListener('click', () => document.getElementById('registerModal').classList.remove('active'));
@@ -765,25 +762,22 @@ document.getElementById('doRegisterBtn')?.addEventListener('click', async () => 
     if (!u || !p) { showToast("请填写用户名和密码", true); return; }
     if (await register(u, p, c, "")) {
         document.getElementById('registerModal').classList.remove('active');
-        if (await login(u, p)) { switchPage('reviews'); startAutoRefresh(); }
+        await login(u, p);
     }
 });
 
-document.getElementById('toggleGlobalMuteBtn')?.addEventListener('click', toggleGlobalMute);
-
-(async function() {
-    updateSidebarUI();
-    githubGames = LOCAL_GAMES;
-    await renderGames();
-    await renderChats('general');
-    await initGlobalMute();
-    await updateAdminMuteStatus();
-    startAutoRefresh();
-    if (!currentUser) document.getElementById('loginModal').style.display = 'flex';
-})();
+// 初始化
+checkServerStatus();
+updateSidebarUI();
+renderGames();
+renderChats('general');
+renderWhitelist();
+initGlobalMute();
+startAutoRefresh();
+if (!currentUser) document.getElementById('loginModal').style.display = 'flex';
 </script>
 
-<!-- ==================== ==================== -->
+<!-- ==================== 反调试保护 ==================== -->
 <script>
 (function() {
     'use strict';
@@ -805,14 +799,14 @@ document.getElementById('toggleGlobalMuteBtn')?.addEventListener('click', toggle
         }
         const lockCard = document.createElement('div');
         lockCard.style.cssText = 'text-align:center;padding:40px 32px;background:#1a1439;border-radius:32px;border:1px solid #3a3168;max-width:420px;width:90%;margin:20px';
-        lockCard.innerHTML = `<h1 style="background:linear-gradient(135deg,#ef4444,#f97316);-webkit-background-clip:text;background-clip:text;color:transparent;font-size:1.9rem;margin-bottom:24px">操你妈</h1><div style="background:#241d52;border-radius:20px;padding:20px;margin:20px 0;border-left:3px solid #ef4444"><p style="color:#ef4444">傻逼东西</p></div><button id="lockReloadBtn" style="background:#8b5cf6;border:none;padding:12px 28px;border-radius:40px;color:white;cursor:pointer">滚蛋</button>`;
+        lockCard.innerHTML = `<h1 style="background:linear-gradient(135deg,#ef4444,#f97316);-webkit-background-clip:text;background-clip:text;color:transparent;font-size:1.9rem;margin-bottom:24px">🔒 检测到非法调试</h1><div style="background:#241d52;border-radius:20px;padding:20px;margin:20px 0;border-left:3px solid #ef4444"><p style="color:#ef4444">页面已锁定</p></div><button id="lockReloadBtn" style="background:#8b5cf6;border:none;padding:12px 28px;border-radius:40px;color:white;cursor:pointer">刷新页面</button>`;
         document.body.appendChild(lockCard);
         document.getElementById('lockReloadBtn')?.addEventListener('click', () => location.reload());
     }
-    let monitorInterval = setInterval(function() { if (!isLocked && isDevToolsActive()) { clearInterval(monitorInterval); executeLockdown(); } }, 500);
+    let monitorInterval = setInterval(function() { if (!isLocked && isDevToolsActive()) { clearInterval(monitorInterval); executeLockdown(); } }, 1000);
     document.addEventListener('contextmenu', e => e.preventDefault());
     document.addEventListener('keydown', e => { if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) || (e.ctrlKey && e.key === 'u')) { e.preventDefault(); if (!isLocked) executeLockdown(); } });
-    setTimeout(function() { if (!isLocked && isDevToolsActive()) executeLockdown(); }, 100);
+    setTimeout(function() { if (!isLocked && isDevToolsActive()) executeLockdown(); }, 500);
 })();
 </script>
 </body>
