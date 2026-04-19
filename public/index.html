@@ -523,17 +523,14 @@ async function login(username, password) {
             updateSidebarUI();
             showToast(`欢迎回来，${username}`, false);
             
-            // 关闭登录弹窗
             document.getElementById('loginModal').classList.remove('active');
             
-            // 切换到评价页面
             document.querySelectorAll('.page-content').forEach(p => p.classList.remove('active-page'));
             document.getElementById('reviewsPage').classList.add('active-page');
             document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active-side'));
             const activeLink = Array.from(document.querySelectorAll('.sidebar-link')).find(l => l.dataset.page === 'reviews');
             if (activeLink) activeLink.classList.add('active-side');
             
-            // 刷新数据
             await renderReviews();
             await renderGames();
             await renderChats(currentRoom);
@@ -543,7 +540,7 @@ async function login(username, password) {
             
             return true;
         } else {
-            showToast("用户名或密码错误", true);
+            showToast(data.error || "用户名或密码错误", true);
             return false;
         }
     } catch(e) {
@@ -614,35 +611,98 @@ async function renderAdminPanel() {
         let chats = await chatsRes.json();
         const reviewsRes = await fetch('/api/reviews');
         let reviews = await reviewsRes.json();
+        const ipsRes = await fetch('/api/admin/ips');
+        let ips = await ipsRes.json();
+        const bannedRes = await fetch('/api/admin/banned');
+        let bannedData = await bannedRes.json();
+        const bannedIPs = new Set(bannedData.bannedIPs || []);
+        
         let container = document.getElementById('adminContent');
         container.innerHTML = `
             <h3>系统统计</h3>
             <p>总用户: ${users.length} | 待审核脚本: ${pending.length} | 评价: ${reviews.length}</p>
+            
+            <h3 style="margin-top:20px;">IP 记录与封禁管理</h3>
+            <div id="ipMgmt" style="max-height:300px;overflow-y:auto;margin-bottom:20px;"></div>
+            
             <h3 style="margin-top:20px;">用户管理</h3>
             <div id="userMgmt"></div>
+            
             <h3 style="margin-top:20px;">评价管理</h3>
             <div id="reviewsMgmt"></div>
+            
             <h3 style="margin-top:20px;">待审核脚本</h3>
             <div id="pendingScripts"></div>
+            
             <h3 style="margin-top:20px;">最近聊天记录</h3>
             <div id="chatMgmt"></div>
         `;
+        
+        // IP 管理
+        let ipHtml = '<div style="border:1px solid #3a3168;border-radius:12px;padding:10px;">';
+        for (const item of ips) {
+            const isBanned = bannedIPs.has(item.ip);
+            ipHtml += `<div class="admin-row" style="border-bottom:1px solid #333;padding:8px">
+                <span><strong>${escapeHtml(item.username || '未知')}</strong> | IP: ${item.ip} | 请求: ${item.requests || 0}次 | 最后: ${item.lastSeen || '未知'}</span>
+                <div>
+                    ${!isBanned ? 
+                        `<button class="btn-danger ban-btn" onclick="banIP('${item.ip}')">封禁IP</button>` :
+                        `<button class="btn-success ban-btn" onclick="unbanIP('${item.ip}')">解封IP</button>`
+                    }
+                </div>
+            </div>`;
+        }
+        ipHtml += '</div>';
+        document.getElementById('ipMgmt').innerHTML = ipHtml;
+        
+        // 用户管理
         document.getElementById('userMgmt').innerHTML = users.map(user => `
             <div class="admin-row">
-                <span><strong>${escapeHtml(user.name)}</strong> (${user.role}) ${user.banned ? '[已封禁]' : ''} ${user.isMuted ? '[已禁言]' : ''}</span>
+                <span><strong>${escapeHtml(user.name)}</strong> (${user.role}) | IP: ${user.registerIP || '未知'} | ${user.isBeauty === 'B' ? '[靓号]' : ''} ${user.banned ? '[已封禁]' : ''} ${user.isMuted ? '[已禁言]' : ''}</span>
                 <div>
                     <button class="btn-secondary ban-btn" onclick="toggleBanUser('${escapeHtml(user.name)}')">${user.banned ? '解封' : '封禁'}</button>
                     <button class="btn-secondary ban-btn" onclick="toggleMuteUser('${escapeHtml(user.name)}')">${user.isMuted ? '解除禁言' : '禁言'}</button>
                     <button class="btn-success ban-btn" onclick="setBeautyUser('${escapeHtml(user.name)}', 'A')">A靓号</button>
                     <button class="btn ban-btn" style="background:#ff3366;" onclick="setBeautyUser('${escapeHtml(user.name)}', 'B')">B靓号</button>
+                    <button class="btn-danger ban-btn" onclick="banUserAndIP('${escapeHtml(user.name)}', '${user.registerIP || ''}')">封禁账号+IP</button>
                 </div>
             </div>
         `).join('');
+        
         document.getElementById('reviewsMgmt').innerHTML = (reviews || []).map(r => `<div class="admin-row"><div><strong>${escapeHtml(r.name)}</strong> ${'★'.repeat(r.rating)}<br>${escapeHtml(r.text)}</div><button class="btn-danger ban-btn" onclick="deleteReview(${r.id})">删除</button></div>`).join('');
         document.getElementById('pendingScripts').innerHTML = pending.length === 0 ? '<div>暂无待审核脚本</div>' : pending.map(s => `<div class="admin-row"><div><strong>${escapeHtml(s.name)}</strong><br>${escapeHtml(s.desc)}<br>作者: ${escapeHtml(s.author)}</div><div><button class="btn-success ban-btn" onclick="approveScript(${s.id})">通过</button><button class="btn-danger ban-btn" onclick="rejectScript(${s.id})">拒绝</button></div></div>`).join('');
         document.getElementById('chatMgmt').innerHTML = (chats || []).slice(-20).reverse().map(c => `<div class="admin-row"><span><strong>${escapeHtml(c.user)}</strong>: ${escapeHtml(c.text.substring(0, 50))}</span><button class="btn-danger ban-btn" onclick="deleteChatMsg(${c.id})">删除</button></div>`).join('');
     } catch(e) { console.error(e); }
 }
+
+window.banIP = async (ip) => {
+    if (!confirm(`确定要封禁 IP ${ip} 吗？`)) return;
+    await fetch('/api/admin/banIP', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ip }) });
+    showToast(`已封禁 IP: ${ip}`);
+    renderAdminPanel();
+};
+
+window.unbanIP = async (ip) => {
+    await fetch('/api/admin/unbanIP', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ip }) });
+    showToast(`已解封 IP: ${ip}`);
+    renderAdminPanel();
+};
+
+window.banUserAndIP = async (username, ip) => {
+    if (!confirm(`确定要封禁用户 "${username}" 及其 IP "${ip}" 吗？`)) return;
+    const res = await fetch('/api/admin/banUserAndIP', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, ip })
+    });
+    const data = await res.json();
+    if (data.success) {
+        showToast(`已封禁用户 ${username} 及其 IP`, false);
+        renderAdminPanel();
+    } else {
+        showToast('封禁失败', true);
+    }
+};
 
 window.toggleMuteUser = async (username) => {
     if (currentRole !== 'owner') return;
@@ -762,6 +822,9 @@ window.setBeautyUser = setBeautyUser;
 window.approveScript = approveScript;
 window.rejectScript = rejectScript;
 window.deleteChatMsg = deleteChatMsg;
+window.banIP = banIP;
+window.unbanIP = unbanIP;
+window.banUserAndIP = banUserAndIP;
 
 document.getElementById('sendChatBtn')?.addEventListener('click', sendChat);
 document.getElementById('chatInput')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendChat(); });
@@ -797,7 +860,6 @@ document.getElementById('doRegisterBtn')?.addEventListener('click', async () => 
     }
 });
 
-// 初始化：不自动弹登录窗，等用户点击需要登录的功能时才弹
 checkServerStatus();
 updateSidebarUI();
 renderGames();
@@ -805,10 +867,9 @@ renderChats('general');
 renderWhitelist();
 initGlobalMute();
 startAutoRefresh();
-// 注意：这里不自动显示登录弹窗
 </script>
 
-<!-- ==================== 反调试保护（修复版：不清空页面） ==================== -->
+<!-- ==================== 反调试保护 ==================== -->
 <script>
 (function() {
     'use strict';
@@ -821,7 +882,7 @@ startAutoRefresh();
         isLocked = true;
         const warning = document.createElement('div');
         warning.style.cssText = 'position:fixed;top:0;left:0;width:100%;background:#ef4444;color:white;padding:10px;text-align:center;z-index:99999';
-        warning.innerHTML = '检测到开发者工具，部分功能可能受限 ⚠️';
+        warning.innerHTML = '⚠️ 检测到开发者工具，部分功能可能受限 ⚠️';
         document.body.appendChild(warning);
         setTimeout(() => warning.remove(), 3000);
     }
