@@ -47,7 +47,6 @@ function saveBannedData() {
     } catch(e) { console.error('保存封禁数据失败:', e); }
 }
 
-// IP 封禁中间件
 app.use((req, res, next) => {
     const ip = getRealIP(req);
     if (req.path === '/api/debug/ip' || req.path === '/test' || req.path === '/unban-me') {
@@ -113,6 +112,8 @@ const GITHUB_USER = process.env.GITHUB_USER || "liushumei11110-boop";
 const REPO_NAME = process.env.REPO_NAME || "lovess";
 const OWNER_PASSWORD = process.env.OWNER_PASSWORD || "khyzybnb666147";
 
+const VALID_CARDS = ["LOVESS-3827", "LOVESS-9156", "LOVESS-4732", "LOVESS-7481", "LOVESS-2069"];
+
 async function readJSON(file) {
     try {
         const url = `https://api.github.com/repos/${GITHUB_USER}/${REPO_NAME}/contents/${file}`;
@@ -150,7 +151,6 @@ app.get('/api/debug/ip', (req, res) => {
 
 app.get('/test', (req, res) => res.json({ status: 'ok' }));
 
-// 临时解封接口
 app.get('/unban-me', (req, res) => {
     const myIP = '106.8.21.205';
     if (bannedIPs.has(myIP)) {
@@ -162,7 +162,6 @@ app.get('/unban-me', (req, res) => {
     }
 });
 
-// ==================== 管理员 API ====================
 app.get('/api/admin/ips', async (req, res) => {
     const list = [];
     for (const [ip, data] of ipRequestCount) {
@@ -262,7 +261,6 @@ app.post('/api/admin/unbanFingerprint', async (req, res) => {
     res.json({ success: true });
 });
 
-// ==================== 业务 API ====================
 app.get('/api/reviews', async (req, res) => {
     const reviews = await readJSON('reviews.json');
     res.json(reviews || []);
@@ -349,22 +347,23 @@ app.post('/api/login', async (req, res) => {
     
     if (username === 'OWNER-康皓月' && password === OWNER_PASSWORD) {
         userIPRecord.set(username, { ip, lastSeen: Date.now(), fingerprint });
-        return res.json({ success: true, role: 'owner', userId: 'LOVESS', isBeauty: 'B' });
+        return res.json({ success: true, role: 'owner', userId: 'LOVESS', isBeauty: 'B', hasValidCard: true });
     }
     
     const users = await readJSON('users.json');
     if (users && users[username] && users[username].password === password && !users[username].banned) {
         userIPRecord.set(username, { ip, lastSeen: Date.now(), fingerprint });
-        return res.json({ success: true, role: users[username].role || 'user', userId: users[username].userId, isBeauty: users[username].isBeauty || 'A' });
+        const hasValidCard = users[username].hasValidCard || false;
+        return res.json({ success: true, role: users[username].role || 'user', userId: users[username].userId, isBeauty: users[username].isBeauty || 'A', hasValidCard: hasValidCard });
     }
     
     res.json({ success: false, error: '用户名或密码错误' });
 });
 
 app.post('/api/register', async (req, res) => {
-    const { username, password, cardKey, fingerprint } = req.body;
+    const { username, password, cardKey, fingerprint, hasValidCard } = req.body;
     const ip = getRealIP(req);
-    console.log(`注册尝试: ${username} 来自 IP: ${ip}, 指纹: ${fingerprint}`);
+    console.log(`注册尝试: ${username} 来自 IP: ${ip}, 指纹: ${fingerprint}, 卡密有效: ${hasValidCard}`);
     
     if (bannedIPs.has(ip)) {
         return res.json({ success: false, error: '您的 IP 已被封禁' });
@@ -386,8 +385,8 @@ app.post('/api/register', async (req, res) => {
     
     if (users[username]) return res.json({ success: false, error: '用户名已存在' });
     
-    const beautyCards = ["LOVESS-3827", "LOVESS-9156", "LOVESS-4732", "LOVESS-7481", "LOVESS-2069"];
-    const isBeauty = (cardKey && beautyCards.includes(cardKey.trim())) ? 'B' : 'A';
+    const isValidCard = hasValidCard || (cardKey && VALID_CARDS.includes(cardKey));
+    const isBeauty = isValidCard ? 'B' : 'A';
     const userId = 'U' + Date.now();
     
     users[username] = { 
@@ -395,18 +394,28 @@ app.post('/api/register', async (req, res) => {
         userId, isBeauty, avatar: '', 
         registerIP: ip,
         fingerprint: fingerprint || '',
+        hasValidCard: isValidCard,
+        cardKey: cardKey || '',
         createdAt: new Date().toISOString() 
     };
     await writeJSON('users.json', users, '新用户注册');
     userIPRecord.set(username, { ip, lastSeen: Date.now(), fingerprint });
-    res.json({ success: true });
+    res.json({ success: true, hasValidCard: isValidCard });
 });
 
 app.get('/api/user/:username', async (req, res) => {
     const users = await readJSON('users.json') || {};
     const user = users[req.params.username];
     if (user) {
-        res.json({ userId: user.userId, role: user.role, isBeauty: user.isBeauty, createdAt: user.createdAt, registerIP: user.registerIP, fingerprint: user.fingerprint });
+        res.json({ 
+            userId: user.userId, 
+            role: user.role, 
+            isBeauty: user.isBeauty, 
+            createdAt: user.createdAt, 
+            registerIP: user.registerIP, 
+            fingerprint: user.fingerprint,
+            hasValidCard: user.hasValidCard || false
+        });
     } else {
         res.json(null);
     }
@@ -423,7 +432,8 @@ app.get('/api/admin/users', async (req, res) => {
             isMuted: info.isMuted || false,
             registerIP: info.registerIP || 'unknown',
             fingerprint: info.fingerprint || 'unknown',
-            isBeauty: info.isBeauty || 'A'
+            isBeauty: info.isBeauty || 'A',
+            hasValidCard: info.hasValidCard || false
         });
     }
     res.json(list);
@@ -515,7 +525,7 @@ app.post('/api/admin/toggleGlobalMute', async (req, res) => {
 loadBannedData();
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`LOVESS 后端已启动！三重封禁已开启`);
+    console.log(`LOVESS 后端已启动！三重封禁已开启，卡密验证已开启`);
     console.log(`监听端口: ${PORT}`);
     console.log(`封禁数据: ${bannedIPs.size} 个IP, ${bannedUsers.size} 个用户, ${bannedFingerprints.size} 个设备指纹`);
 });
