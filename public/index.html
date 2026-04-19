@@ -328,12 +328,12 @@
 
 <div id="loginModal" class="login-modal"><div class="modal-container"><h2>登录</h2><input id="loginUsername" class="input-field" placeholder="用户名"><input id="loginPassword" type="password" class="input-field" placeholder="密码" style="margin-top:12px;"><div style="display:flex; gap:12px; margin-top:24px;"><button id="doLoginBtn" class="btn" style="flex:1;">登录</button><button id="toRegisterBtn" class="btn btn-secondary" style="flex:1;">去注册</button><button id="closeLoginBtn" class="btn btn-secondary">取消</button></div></div></div>
 
-<div id="registerModal" class="register-modal"><div class="modal-container"><h2>注册新账号</h2><input id="regUsername" class="input-field" placeholder="用户名 (至少3位)"><input id="regPassword" type="password" class="input-field" placeholder="密码" style="margin-top:12px;"><input id="regCard" class="input-field" placeholder="卡密 (选填)" style="margin-top:12px;"><div style="margin-top:8px; font-size:0.75rem; color:var(--text-muted);">卡密需购买QQ群: 1095848365 </div><input type="file" id="regAvatar" accept="image/*" style="margin-top:12px; background:var(--surface-alt); color:var(--text-primary);"><div style="margin-top:8px; font-size:0.7rem; color:var(--text-muted);">可选：上传头像</div><div style="display:flex; gap:12px; margin-top:24px;"><button id="doRegisterBtn" class="btn btn-success" style="flex:1;">注册</button><button id="closeRegisterBtn" class="btn btn-secondary">取消</button></div></div></div>
+<div id="registerModal" class="register-modal"><div class="modal-container"><h2>注册新账号</h2><input id="regUsername" class="input-field" placeholder="用户名 (至少3位)"><input id="regPassword" type="password" class="input-field" placeholder="密码" style="margin-top:12px;"><input id="regCard" class="input-field" placeholder="卡密 (选填)" style="margin-top:12px;"><div style="margin-top:8px; font-size:0.75rem; color:var(--text-muted);">卡密需购买QQ群: 1095848365</div><input type="file" id="regAvatar" accept="image/*" style="margin-top:12px; background:var(--surface-alt); color:var(--text-primary);"><div style="margin-top:8px; font-size:0.7rem; color:var(--text-muted);">可选：上传头像</div><div style="display:flex; gap:12px; margin-top:24px;"><button id="doRegisterBtn" class="btn btn-success" style="flex:1;">注册</button><button id="closeRegisterBtn" class="btn btn-secondary">取消</button></div></div></div>
 
 <div id="profileModal" class="profile-modal"><div class="profile-container" id="profileContent"></div></div>
 
 <script>
-// ==================== 三重封禁版 ====================
+// ==================== 三重封禁版 + 卡密验证 ====================
 const API_BASE = '';
 let currentUser = null, currentRole = null;
 let currentRoom = "general";
@@ -341,6 +341,10 @@ let githubGames = [];
 let autoRefreshTimer = null;
 let currentUserData = null;
 let globalMuteEnabled = false;
+let hasValidCard = false;  // 是否有有效卡密
+
+// 正确卡密列表
+const VALID_CARDS = ["LOVESS-3827", "LOVESS-9156", "LOVESS-4732", "LOVESS-7481", "LOVESS-2069"];
 
 function showToast(msg, isError) {
     let t = document.createElement('div'); t.className = 'toast';
@@ -357,6 +361,21 @@ function getBeautyBadgeHtml(userId, isBeauty) {
         return `<span class="beauty-badge-a">靓号</span>`;
     }
     return "";
+}
+
+// 检查是否需要卡密才能访问的功能
+function checkCardAccess() {
+    if (!currentUser) {
+        showToast("请先登录", true);
+        document.getElementById('loginModal').classList.add('active');
+        return false;
+    }
+    if (currentRole === 'owner') return true;  // 管理员不受限制
+    if (!hasValidCard) {
+        showToast("请先购买卡密并注册时填写，才能访问游戏、执行器、白名单功能", true);
+        return false;
+    }
+    return true;
 }
 
 function checkAccess() {
@@ -417,7 +436,7 @@ window.deleteReview = async (id) => {
 };
 
 async function renderGames() {
-    if (!checkAccess()) return;
+    if (!checkCardAccess()) return;
     let container = document.getElementById('gamesContainer');
     if (!container) return;
     try {
@@ -491,7 +510,7 @@ async function uploadScript() {
 }
 
 async function renderWhitelist() {
-    if (!checkAccess()) return;
+    if (!checkCardAccess()) return;
     try {
         const res = await fetch('/api/whitelist');
         let whitelist = await res.json();
@@ -501,7 +520,7 @@ async function renderWhitelist() {
 }
 
 async function addToWhitelist() {
-    if (!checkAccess()) return;
+    if (!checkCardAccess()) return;
     if (currentRole !== 'owner') { showToast("仅管理员可操作", true); return; }
     let name = document.getElementById('whitelistName').value.trim();
     if (!name) { showToast("请输入用户名", true); return; }
@@ -527,18 +546,20 @@ async function login() {
         const result = await fp.get();
         const fingerprint = result.visitorId;
         
-        const res = await fetch('/api/login', {
+        const response = await fetch('/api/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password, fingerprint })
         });
-        const data = await res.json();
+        const data = await response.json();
         console.log("登录响应:", data);
         
         if (data.success) {
             currentUser = username;
             currentRole = data.role;
             currentUserData = { userId: data.userId, avatar: "", isBeauty: data.isBeauty || "A", isMuted: false };
+            // 检查用户是否有有效卡密
+            hasValidCard = data.hasValidCard || false;
             updateSidebarUI();
             showToast(`欢迎回来，${username}`, false);
             
@@ -563,6 +584,7 @@ async function login() {
             return false;
         }
     } catch(e) {
+        console.error("登录错误:", e);
         msgDiv.innerHTML = "服务器连接失败: " + e.message;
         return false;
     }
@@ -576,6 +598,14 @@ async function register() {
     
     if (username.length < 3) { msgDiv.innerHTML = '用户名至少3位'; return; }
     if (password.length < 3) { msgDiv.innerHTML = '密码至少3位'; return; }
+    
+    // 检查卡密是否有效
+    const isValidCard = VALID_CARDS.includes(cardKey);
+    if (!isValidCard && cardKey !== "") {
+        msgDiv.innerHTML = '卡密无效！请购买正确卡密';
+        return;
+    }
+    
     msgDiv.innerHTML = '注册中...';
     
     try {
@@ -583,12 +613,12 @@ async function register() {
         const result = await fp.get();
         const fingerprint = result.visitorId;
         
-        const res = await fetch('/api/register', {
+        const response = await fetch('/api/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password, cardKey, fingerprint })
+            body: JSON.stringify({ username, password, cardKey, fingerprint, hasValidCard: isValidCard })
         });
-        const data = await res.json();
+        const data = await response.json();
         
         if (data.success) {
             msgDiv.innerHTML = '注册成功！正在登录...';
@@ -601,6 +631,7 @@ async function register() {
             msgDiv.innerHTML = data.error || "注册失败";
         }
     } catch(e) {
+        console.error("注册错误:", e);
         msgDiv.innerHTML = "服务器连接失败: " + e.message;
     }
 }
@@ -615,7 +646,7 @@ async function showUserProfile(username) {
             <div class="profile-avatar"><i class="fas fa-user fa-3x"></i></div>
             <h2>${escapeHtml(username)}</h2><p><strong>ID:</strong> ${user.userId}</p>${beautyBadge}
             <p><strong>角色:</strong> ${user.role || '用户'}</p><p><strong>注册时间:</strong> ${new Date(user.createdAt).toLocaleString()}</p>
-            <p><strong>设备指纹:</strong> ${user.fingerprint ? user.fingerprint.substring(0, 20) + '...' : '无'}</p>
+            <p><strong>卡密状态:</strong> ${user.hasValidCard ? '已激活' : '未激活'}</p>
             <button class="btn btn-secondary close-profile" onclick="document.getElementById('profileModal').classList.remove('active')">关闭</button>
         `;
         document.getElementById('profileModal').classList.add('active');
@@ -623,7 +654,7 @@ async function showUserProfile(username) {
 }
 
 function logout() { 
-    currentUser = null; currentRole = null; currentUserData = null; 
+    currentUser = null; currentRole = null; currentUserData = null; hasValidCard = false;
     updateSidebarUI(); 
     showToast("已登出", false); 
     document.querySelectorAll('.page-content').forEach(p => p.classList.remove('active-page'));
@@ -679,7 +710,6 @@ async function renderAdminPanel() {
             <div id="chatMgmt"></div>
         `;
         
-        // IP 管理
         let ipHtml = '<div style="border:1px solid #3a3168;border-radius:12px;padding:10px;">';
         for (const item of ips) {
             if (item.type === 'ip') {
@@ -698,7 +728,6 @@ async function renderAdminPanel() {
         ipHtml += '</div>';
         document.getElementById('ipMgmt').innerHTML = ipHtml;
         
-        // 设备指纹管理
         let fingerprintHtml = '<div style="border:1px solid #3a3168;border-radius:12px;padding:10px;">';
         const uniqueFingerprints = new Map();
         for (const user of users) {
@@ -721,10 +750,9 @@ async function renderAdminPanel() {
         fingerprintHtml += '</div>';
         document.getElementById('fingerprintMgmt').innerHTML = fingerprintHtml || '<div>暂无设备指纹记录</div>';
         
-        // 用户管理
         document.getElementById('userMgmt').innerHTML = users.map(user => `
             <div class="admin-row">
-                <span><strong>${escapeHtml(user.name)}</strong> (${user.role}) | IP: ${user.registerIP || '未知'} | ${user.isBeauty === 'B' ? '[靓号]' : ''} ${user.banned ? '[已封禁]' : ''} ${user.isMuted ? '[已禁言]' : ''}</span>
+                <span><strong>${escapeHtml(user.name)}</strong> (${user.role}) | IP: ${user.registerIP || '未知'} | 卡密: ${user.hasValidCard ? '已激活' : '未激活'} | ${user.isBeauty === 'B' ? '[靓号]' : ''} ${user.banned ? '[已封禁]' : ''}</span>
                 <div>
                     <button class="btn-secondary ban-btn" onclick="toggleBanUser('${escapeHtml(user.name)}')">${user.banned ? '解封' : '封禁'}</button>
                     <button class="btn-secondary ban-btn" onclick="toggleMuteUser('${escapeHtml(user.name)}')">${user.isMuted ? '解除禁言' : '禁言'}</button>
@@ -852,12 +880,10 @@ async function toggleGlobalMute() {
 }
 
 function switchPage(pageId) {
-    if ((pageId === 'games' || pageId === 'whitelist' || pageId === 'executor' || pageId === 'scripts') && !currentUser) { 
-        showToast("请先登录", true); 
-        document.getElementById('loginModal').classList.add('active');
-        return; 
-    }
-    if (pageId === 'admin' && currentRole !== 'owner') { 
+    if (pageId === 'games' || pageId === 'executor' || pageId === 'whitelist') {
+        if (!checkCardAccess()) return;
+    } else if ((pageId === 'scripts') && !checkAccess()) return;
+    else if (pageId === 'admin' && currentRole !== 'owner') { 
         showToast("只有管理员可以访问管理面板", true); 
         return; 
     }
@@ -917,13 +943,13 @@ document.querySelectorAll('#chatTabs .tab').forEach(t => {
         renderChats(currentRoom);
     });
 });
-document.getElementById('refreshGamesBtn')?.addEventListener('click', async () => { if (!checkAccess()) return; showToast("正在同步...", false); await renderGames(); showToast("同步完成", false); });
+document.getElementById('refreshGamesBtn')?.addEventListener('click', async () => { if (!checkCardAccess()) return; showToast("正在同步...", false); await renderGames(); showToast("同步完成", false); });
 document.getElementById('uploadScriptBtn')?.addEventListener('click', uploadScript);
 document.getElementById('addWhitelistBtn')?.addEventListener('click', addToWhitelist);
 document.getElementById('submitReviewBtn')?.addEventListener('click', submitReview);
-document.getElementById('executeBtn')?.addEventListener('click', () => { let code = document.getElementById('executorCode').value; if(code.trim()){ document.getElementById('executorLog').innerHTML += `\n> 执行: ${code.substring(0,60)}...`; showToast("已执行", false); } else showToast("请输入代码", true); });
+document.getElementById('executeBtn')?.addEventListener('click', () => { if (!checkCardAccess()) return; let code = document.getElementById('executorCode').value; if(code.trim()){ document.getElementById('executorLog').innerHTML += `\n> 执行: ${code.substring(0,60)}...`; showToast("已执行", false); } else showToast("请输入代码", true); });
 document.getElementById('clearExecutorBtn')?.addEventListener('click', () => { document.getElementById('executorCode').value = ''; document.getElementById('executorLog').innerHTML = '控制台已清空'; });
-document.getElementById('injectBtn')?.addEventListener('click', () => { if(!checkAccess()) return; showToast("注入器已连接(演示)", false); });
+document.getElementById('injectBtn')?.addEventListener('click', () => { if(!checkCardAccess()) return; showToast("注入器已连接(演示)", false); });
 document.getElementById('toggleGlobalMuteBtn')?.addEventListener('click', toggleGlobalMute);
 
 document.getElementById('doLoginBtn')?.addEventListener('click', login);
