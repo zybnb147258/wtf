@@ -5,9 +5,9 @@ app.use(express.json());
 app.use(express.static('public'));
 
 // ==================== 后端 API ====================
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-const GITHUB_USER = process.env.GITHUB_USER || "liushumei11110-boop";
-const REPO_NAME = process.env.REPO_NAME || "lovess";
+const GITHUB_TOKEN = "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";
+const GITHUB_USER = "liushumei11110-boop";
+const REPO_NAME = "lovess";
 const OWNER_PASSWORD = process.env.OWNER_PASSWORD || "khyzybnb666147";
 
 async function readJSON(file) {
