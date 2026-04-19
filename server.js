@@ -10,43 +10,60 @@ const GITHUB_USER = process.env.GITHUB_USER || "liushumei11110-boop";
 const REPO_NAME = process.env.REPO_NAME || "lovess";
 const OWNER_PASSWORD = process.env.OWNER_PASSWORD || "khyzybnb666147";
 
-// 测试路由：用来验证服务器是否运行
-app.get('/test', (req, res) => {
-    res.json({ message: 'Server is running!' });
-});
-
+// ==================== 正确的读取函数 ====================
 async function readJSON(file) {
     try {
         const url = `https://api.github.com/repos/${GITHUB_USER}/${REPO_NAME}/contents/${file}`;
         const res = await fetch(url, { headers: { 'Authorization': `token ${GITHUB_TOKEN}` } });
-        if (!res.ok) return null;
+        if (!res.ok) {
+            if (res.status === 404) return {};
+            return null;
+        }
         const data = await res.json();
-        return JSON.parse(Buffer.from(data.content, 'base64').toString());
-    } catch(e) { 
-        console.log(`读取 ${file} 失败:`, e.message);
-        return null; 
+        const content = Buffer.from(data.content, 'base64').toString('utf8');
+        return JSON.parse(content);
+    } catch(e) {
+        console.error(`读取 ${file} 失败:`, e.message);
+        return {};
     }
 }
 
+// ==================== 正确的写入函数 ====================
 async function writeJSON(file, content, msg) {
     try {
         const url = `https://api.github.com/repos/${GITHUB_USER}/${REPO_NAME}/contents/${file}`;
         let sha = null;
         const getRes = await fetch(url, { headers: { 'Authorization': `token ${GITHUB_TOKEN}` } });
-        if (getRes.ok) sha = (await getRes.json()).sha;
-        const base64 = Buffer.from(JSON.stringify(content, null, 2)).toString('base64');
-        await fetch(url, {
+        if (getRes.ok) {
+            const data = await getRes.json();
+            sha = data.sha;
+        }
+        
+        const jsonString = JSON.stringify(content, null, 2);
+        const base64Content = Buffer.from(jsonString).toString('base64');
+        
+        const putRes = await fetch(url, {
             method: 'PUT',
             headers: { 'Authorization': `token ${GITHUB_TOKEN}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: msg, content: base64, sha })
+            body: JSON.stringify({ message: msg, content: base64Content, sha: sha })
         });
-        console.log(`写入 ${file} 成功`);
+        
+        if (!putRes.ok) {
+            const err = await putRes.json();
+            console.error(`写入失败:`, err.message);
+            return false;
+        }
         return true;
     } catch(e) {
-        console.log(`写入 ${file} 失败:`, e.message);
+        console.error(`写入 ${file} 失败:`, e.message);
         return false;
     }
 }
+
+// ==================== 测试路由 ====================
+app.get('/test', (req, res) => {
+    res.json({ message: 'Server is running!', status: 'ok' });
+});
 
 // ==================== 评价 API ====================
 app.get('/api/reviews', async (req, res) => {
@@ -74,8 +91,7 @@ app.post('/api/review/delete', async (req, res) => {
 app.get('/api/games', async (req, res) => {
     const games = [
         { name: "luau", players: 6, link: "https://www.roblox.com/games/125462571840934", description: "luau游戏" },
-        { name: "月跑小镇", players: 230, link: "https://www.roblox.com/games/88063017898040", description: "月跑小镇" },
-        { name: "HBPLA|湖北警戒区", players: 47, link: "https://www.roblox.com/games/133580699283141", description: "湖北警戒区" }
+        { name: "月跑小镇", players: 230, link: "https://www.roblox.com/games/88063017898040", description: "月跑小镇" }
     ];
     res.json(games);
 });
@@ -125,26 +141,26 @@ app.post('/api/whitelist/add', async (req, res) => {
 // ==================== 用户 API ====================
 app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
-    console.log(`[LOGIN] 尝试: ${username}`);
+    console.log(`登录尝试: ${username}`);
     
     if (username === 'OWNER-康皓月' && password === OWNER_PASSWORD) {
-        console.log(`[LOGIN] 管理员登录成功: ${username}`);
+        console.log(`管理员登录成功`);
         return res.json({ success: true, role: 'owner', userId: 'LOVESS', isBeauty: 'B' });
     }
     
     const users = await readJSON('users.json');
     if (users && users[username] && users[username].password === password && !users[username].banned) {
-        console.log(`[LOGIN] 用户登录成功: ${username}`);
+        console.log(`用户登录成功: ${username}`);
         return res.json({ success: true, role: users[username].role || 'user', userId: users[username].userId, isBeauty: users[username].isBeauty || 'A' });
     }
     
-    console.log(`[LOGIN] 失败: ${username}`);
+    console.log(`登录失败: ${username}`);
     res.json({ success: false });
 });
 
 app.post('/api/register', async (req, res) => {
     const { username, password, cardKey } = req.body;
-    console.log(`[REGISTER] 尝试: ${username}`);
+    console.log(`注册尝试: ${username}`);
     
     const users = await readJSON('users.json') || {};
     if (users[username]) {
@@ -162,10 +178,10 @@ app.post('/api/register', async (req, res) => {
     
     const success = await writeJSON('users.json', users, `新用户注册: ${username}`);
     if (success) {
-        console.log(`[REGISTER] 成功: ${username}`);
+        console.log(`注册成功: ${username}`);
         res.json({ success: true, userId: userId });
     } else {
-        console.log(`[REGISTER] 失败: ${username}`);
+        console.log(`注册失败: ${username}`);
         res.json({ success: false, error: '写入失败' });
     }
 });
@@ -173,7 +189,11 @@ app.post('/api/register', async (req, res) => {
 app.get('/api/user/:username', async (req, res) => {
     const users = await readJSON('users.json') || {};
     const user = users[req.params.username];
-    res.json(user ? { userId: user.userId, role: user.role, isBeauty: user.isBeauty, createdAt: user.createdAt } : null);
+    if (user) {
+        res.json({ userId: user.userId, role: user.role, isBeauty: user.isBeauty, createdAt: user.createdAt });
+    } else {
+        res.json(null);
+    }
 });
 
 // ==================== 管理员 API ====================
@@ -262,10 +282,10 @@ app.post('/api/admin/toggleGlobalMute', async (req, res) => {
     res.json({ enabled: newStatus === 'B' });
 });
 
-// ==================== 启动服务器 (关键修复点) ====================
+// ==================== 启动服务器 ====================
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`✅ LOVESS 后端已启动！`);
     console.log(`✅ 监听端口: ${PORT}`);
-    console.log(`✅ GitHub 目标: ${GITHUB_USER}/${REPO_NAME}`);
+    console.log(`✅ GitHub: ${GITHUB_USER}/${REPO_NAME}`);
 });
