@@ -4,11 +4,16 @@ const app = express();
 app.use(express.json());
 app.use(express.static('public'));
 
-// ==================== 后端 API ====================
+// ==================== 硬编码配置 ====================
 const GITHUB_TOKEN = "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";
 const GITHUB_USER = "liushumei11110-boop";
 const REPO_NAME = "lovess";
-const OWNER_PASSWORD = process.env.OWNER_PASSWORD || "khyzybnb666147";
+const OWNER_PASSWORD = "khyzybnb666147";
+
+// 测试路由：用来验证服务器是否运行
+app.get('/test', (req, res) => {
+    res.json({ message: 'Server is running!' });
+});
 
 async function readJSON(file) {
     try {
@@ -17,23 +22,33 @@ async function readJSON(file) {
         if (!res.ok) return null;
         const data = await res.json();
         return JSON.parse(Buffer.from(data.content, 'base64').toString());
-    } catch(e) { return null; }
+    } catch(e) { 
+        console.log(`读取 ${file} 失败:`, e.message);
+        return null; 
+    }
 }
 
 async function writeJSON(file, content, msg) {
-    const url = `https://api.github.com/repos/${GITHUB_USER}/${REPO_NAME}/contents/${file}`;
-    let sha = null;
-    const getRes = await fetch(url, { headers: { 'Authorization': `token ${GITHUB_TOKEN}` } });
-    if (getRes.ok) sha = (await getRes.json()).sha;
-    const base64 = Buffer.from(JSON.stringify(content, null, 2)).toString('base64');
-    await fetch(url, {
-        method: 'PUT',
-        headers: { 'Authorization': `token ${GITHUB_TOKEN}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: msg, content: base64, sha })
-    });
+    try {
+        const url = `https://api.github.com/repos/${GITHUB_USER}/${REPO_NAME}/contents/${file}`;
+        let sha = null;
+        const getRes = await fetch(url, { headers: { 'Authorization': `token ${GITHUB_TOKEN}` } });
+        if (getRes.ok) sha = (await getRes.json()).sha;
+        const base64 = Buffer.from(JSON.stringify(content, null, 2)).toString('base64');
+        await fetch(url, {
+            method: 'PUT',
+            headers: { 'Authorization': `token ${GITHUB_TOKEN}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: msg, content: base64, sha })
+        });
+        console.log(`写入 ${file} 成功`);
+        return true;
+    } catch(e) {
+        console.log(`写入 ${file} 失败:`, e.message);
+        return false;
+    }
 }
 
-// 评价
+// ==================== 评价 API ====================
 app.get('/api/reviews', async (req, res) => {
     const reviews = await readJSON('reviews.json');
     res.json(reviews || []);
@@ -55,18 +70,17 @@ app.post('/api/review/delete', async (req, res) => {
     res.json({ success: true });
 });
 
-// 游戏
+// ==================== 游戏 API ====================
 app.get('/api/games', async (req, res) => {
     const games = [
         { name: "luau", players: 6, link: "https://www.roblox.com/games/125462571840934", description: "luau游戏" },
         { name: "月跑小镇", players: 230, link: "https://www.roblox.com/games/88063017898040", description: "月跑小镇" },
-        { name: "HBPLA|湖北警戒区", players: 47, link: "https://www.roblox.com/games/133580699283141", description: "湖北警戒区" },
-        { name: "北京-Beijing", players: 5, link: "https://www.roblox.com/games/93175099699395", description: "北京角色扮演" }
+        { name: "HBPLA|湖北警戒区", players: 47, link: "https://www.roblox.com/games/133580699283141", description: "湖北警戒区" }
     ];
     res.json(games);
 });
 
-// 聊天
+// ==================== 聊天 API ====================
 app.get('/api/chats/:room', async (req, res) => {
     const chats = await readJSON('chats.json');
     res.json((chats || []).filter(c => c.room === req.params.room));
@@ -80,7 +94,7 @@ app.post('/api/chat', async (req, res) => {
     res.json({ success: true });
 });
 
-// 脚本
+// ==================== 脚本 API ====================
 app.get('/api/scripts', async (req, res) => {
     const scripts = await readJSON('scripts.json');
     res.json((scripts || []).filter(s => s.status === 'approved'));
@@ -94,7 +108,7 @@ app.post('/api/script/upload', async (req, res) => {
     res.json({ success: true });
 });
 
-// 白名单
+// ==================== 白名单 API ====================
 app.get('/api/whitelist', async (req, res) => {
     const whitelist = await readJSON('whitelist.json');
     res.json(whitelist || []);
@@ -108,38 +122,61 @@ app.post('/api/whitelist/add', async (req, res) => {
     res.json({ success: true });
 });
 
-// 用户
+// ==================== 用户 API ====================
 app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
+    console.log(`[LOGIN] 尝试: ${username}`);
+    
     if (username === 'OWNER-康皓月' && password === OWNER_PASSWORD) {
+        console.log(`[LOGIN] 管理员登录成功: ${username}`);
         return res.json({ success: true, role: 'owner', userId: 'LOVESS', isBeauty: 'B' });
     }
-    const users = await readJSON('users.json') || {};
-    if (users[username] && users[username].password === password && !users[username].banned) {
+    
+    const users = await readJSON('users.json');
+    if (users && users[username] && users[username].password === password && !users[username].banned) {
+        console.log(`[LOGIN] 用户登录成功: ${username}`);
         return res.json({ success: true, role: users[username].role || 'user', userId: users[username].userId, isBeauty: users[username].isBeauty || 'A' });
     }
+    
+    console.log(`[LOGIN] 失败: ${username}`);
     res.json({ success: false });
 });
 
 app.post('/api/register', async (req, res) => {
     const { username, password, cardKey } = req.body;
+    console.log(`[REGISTER] 尝试: ${username}`);
+    
     const users = await readJSON('users.json') || {};
-    if (users[username]) return res.json({ success: false, error: '用户已存在' });
+    if (users[username]) {
+        return res.json({ success: false, error: '用户已存在' });
+    }
+    
     const beautyCards = ["LOVESS-3827", "LOVESS-9156", "LOVESS-4732", "LOVESS-7481", "LOVESS-2069"];
     const isBeauty = (cardKey && beautyCards.includes(cardKey.trim())) ? 'B' : 'A';
-    users[username] = { password, role: 'user', banned: false, isMuted: false, userId: 'U' + Date.now(), isBeauty, avatar: '', createdAt: new Date().toISOString() };
-    await writeJSON('users.json', users, '新用户注册');
-    res.json({ success: true });
+    const userId = 'U' + Date.now();
+    
+    users[username] = { 
+        password, role: 'user', banned: false, isMuted: false, 
+        userId, isBeauty, avatar: '', createdAt: new Date().toISOString() 
+    };
+    
+    const success = await writeJSON('users.json', users, `新用户注册: ${username}`);
+    if (success) {
+        console.log(`[REGISTER] 成功: ${username}`);
+        res.json({ success: true, userId: userId });
+    } else {
+        console.log(`[REGISTER] 失败: ${username}`);
+        res.json({ success: false, error: '写入失败' });
+    }
 });
 
 app.get('/api/user/:username', async (req, res) => {
     const users = await readJSON('users.json') || {};
     const user = users[req.params.username];
-    if (user) res.json({ userId: user.userId, role: user.role, isBeauty: user.isBeauty, createdAt: user.createdAt });
-    else res.json(null);
+    res.json(user ? { userId: user.userId, role: user.role, isBeauty: user.isBeauty, createdAt: user.createdAt } : null);
 });
 
-// 管理员
+// ==================== 管理员 API ====================
 app.get('/api/admin/users', async (req, res) => {
     const users = await readJSON('users.json') || {};
     res.json(Object.entries(users).map(([n, u]) => ({ name: n, role: u.role, banned: u.banned, isMuted: u.isMuted || false })));
@@ -158,21 +195,30 @@ app.get('/api/admin/chats', async (req, res) => {
 app.post('/api/admin/toggleBan', async (req, res) => {
     const { username } = req.body;
     const users = await readJSON('users.json') || {};
-    if (users[username]) { users[username].banned = !users[username].banned; await writeJSON('users.json', users, '封禁/解封用户'); }
+    if (users[username]) { 
+        users[username].banned = !users[username].banned; 
+        await writeJSON('users.json', users, '封禁/解封用户'); 
+    }
     res.json({ success: true });
 });
 
 app.post('/api/admin/toggleMute', async (req, res) => {
     const { username } = req.body;
     const users = await readJSON('users.json') || {};
-    if (users[username]) { users[username].isMuted = !users[username].isMuted; await writeJSON('users.json', users, '禁言/解除禁言'); }
+    if (users[username]) { 
+        users[username].isMuted = !users[username].isMuted; 
+        await writeJSON('users.json', users, '禁言/解除禁言'); 
+    }
     res.json({ success: true });
 });
 
 app.post('/api/admin/setBeauty', async (req, res) => {
     const { username, type } = req.body;
     const users = await readJSON('users.json') || {};
-    if (users[username]) { users[username].isBeauty = type; await writeJSON('users.json', users, '设置靓号'); }
+    if (users[username]) { 
+        users[username].isBeauty = type; 
+        await writeJSON('users.json', users, '设置靓号'); 
+    }
     res.json({ success: true });
 });
 
@@ -180,7 +226,10 @@ app.post('/api/admin/approveScript', async (req, res) => {
     const { id } = req.body;
     const scripts = await readJSON('scripts.json') || [];
     const idx = scripts.findIndex(s => s.id === id);
-    if (idx !== -1) { scripts[idx].status = 'approved'; await writeJSON('scripts.json', scripts, '通过脚本'); }
+    if (idx !== -1) { 
+        scripts[idx].status = 'approved'; 
+        await writeJSON('scripts.json', scripts, '通过脚本'); 
+    }
     res.json({ success: true });
 });
 
@@ -213,5 +262,10 @@ app.post('/api/admin/toggleGlobalMute', async (req, res) => {
     res.json({ enabled: newStatus === 'B' });
 });
 
-// ==================== 启动服务器 ====================
-app.listen(3000, () => console.log('LOVESS 运行在 http://localhost:3000'));
+// ==================== 启动服务器 (关键修复点) ====================
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`✅ LOVESS 后端已启动！`);
+    console.log(`✅ 监听端口: ${PORT}`);
+    console.log(`✅ GitHub 目标: ${GITHUB_USER}/${REPO_NAME}`);
+});
