@@ -20,6 +20,11 @@ let bannedUsers = new Set();
 let hardwareToUser = new Map();
 let visitors = new Map();
 
+// 卡密相关变量
+const VALID_CARDS = ["LOVESS-3827", "LOVESS-9156", "LOVESS-4732", "LOVESS-7481", "LOVESS-2069", "LOVESS-8888", "LOVESS-9999"];
+const BEAUTY_CARDS = ["LOVESS-3827", "LOVESS-9156", "LOVESS-4732", "LOVESS-7481", "LOVESS-2069"];
+let usedCards = new Set();
+
 function generateHardwareId(fingerprint) {
     const stableFeatures = {
         webgl: fingerprint.webgl,
@@ -57,6 +62,42 @@ function saveBannedData() {
             bannedUsers: [...bannedUsers]
         }, null, 2));
     } catch(e) { console.error(e); }
+}
+
+function loadUsedCards() {
+    try {
+        const filePath = path.join(__dirname, 'used_cards.json');
+        if (fs.existsSync(filePath)) {
+            const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+            usedCards = new Set(data);
+            console.log(`加载已使用卡密: ${usedCards.size} 个`);
+        }
+    } catch(e) { console.error('加载已使用卡密失败:', e); }
+}
+
+function saveUsedCards() {
+    try {
+        fs.writeFileSync(path.join(__dirname, 'used_cards.json'), JSON.stringify([...usedCards], null, 2));
+    } catch(e) { console.error('保存已使用卡密失败:', e); }
+}
+
+function logCardVerification(cardCode, hardwareId, username, ip, action) {
+    try {
+        const logsPath = path.join(__dirname, 'card_verification_logs.json');
+        let logs = [];
+        if (fs.existsSync(logsPath)) {
+            logs = JSON.parse(fs.readFileSync(logsPath, 'utf8'));
+        }
+        logs.push({
+            cardCode: cardCode,
+            hardwareId: hardwareId,
+            username: username || '未登录',
+            ip: ip,
+            action: action,
+            timestamp: new Date().toISOString()
+        });
+        fs.writeFileSync(logsPath, JSON.stringify(logs, null, 2));
+    } catch(e) { console.error('保存验证日志失败:', e); }
 }
 
 function loadVisitorsData() {
@@ -277,7 +318,9 @@ app.get('/api/admin/users', async (req, res) => {
             banned: info.banned || false,
             isMuted: info.isMuted || false,
             hardwareId: info.hardwareId || null,
-            registerIP: info.registerIP
+            registerIP: info.registerIP,
+            isBeauty: info.isBeauty || 'A',
+            usedCard: info.usedCard || null
         });
     }
     res.json(list);
@@ -293,7 +336,78 @@ app.get('/api/admin/chats', async (req, res) => {
     res.json(chats);
 });
 
-// ==================== 全局禁言 API（直接读写 GitHub whitelist.json） ====================
+app.get('/api/admin/cards/usage', async (req, res) => {
+    try {
+        const logsPath = path.join(__dirname, 'card_verification_logs.json');
+        let logs = [];
+        if (fs.existsSync(logsPath)) {
+            logs = JSON.parse(fs.readFileSync(logsPath, 'utf8'));
+        }
+        
+        const cardStatus = VALID_CARDS.map(card => {
+            const usage = logs.find(log => log.cardCode === card);
+            return {
+                code: card,
+                level: BEAUTY_CARDS.includes(card) ? 'B级(靓号)' : 'A级(普通)',
+                isUsed: usedCards.has(card),
+                usedBy: usage?.username || null,
+                usedAt: usage?.timestamp || null,
+                usedIP: usage?.ip || null
+            };
+        });
+        
+        res.json(cardStatus);
+    } catch(e) {
+        res.status(500).json({ error: '获取卡密状态失败' });
+    }
+});
+
+app.post('/api/verify-card', (req, res) => {
+    const { cardCode, hardwareId, username } = req.body;
+    const ip = getRealIP(req);
+    
+    console.log(`卡密验证尝试: ${cardCode} 硬件: ${hardwareId?.substring(0, 16)}... IP: ${ip}`);
+    
+    if (!cardCode || typeof cardCode !== 'string') {
+        return res.status(400).json({ 
+            success: false, 
+            message: '请提供有效的卡密' 
+        });
+    }
+    
+    const trimmedCard = cardCode.trim().toUpperCase();
+    
+    if (!VALID_CARDS.includes(trimmedCard)) {
+        console.log(`卡密验证失败: ${trimmedCard} - 无效卡密`);
+        return res.status(401).json({ 
+            success: false, 
+            message: '卡密无效' 
+        });
+    }
+    
+    if (usedCards.has(trimmedCard)) {
+        console.log(`卡密验证失败: ${trimmedCard} - 已被使用`);
+        return res.status(401).json({ 
+            success: false, 
+            message: '卡密已被使用，每个卡密只能使用一次' 
+        });
+    }
+    
+    usedCards.add(trimmedCard);
+    saveUsedCards();
+    
+    const cardLevel = BEAUTY_CARDS.includes(trimmedCard) ? 'B' : 'A';
+    logCardVerification(trimmedCard, hardwareId, username, ip, 'verify');
+    
+    console.log(`卡密验证成功: ${trimmedCard} 等级: ${cardLevel === 'B' ? 'B级(靓号)' : 'A级(普通)'} 用户: ${username || '未登录'} IP: ${ip}`);
+    
+    res.json({ 
+        success: true, 
+        message: '卡密验证成功',
+        level: cardLevel
+    });
+});
+
 app.get('/api/admin/globalMuteStatus', async (req, res) => {
     try {
         const status = await readGitHubFile('whitelist.json');
@@ -335,7 +449,6 @@ app.post('/api/admin/toggleGlobalMute', async (req, res) => {
     }
 });
 
-// ==================== GitHub 读写函数 ====================
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const GITHUB_USER = process.env.GITHUB_USER || "liushumei11110-boop";
 const REPO_NAME = process.env.REPO_NAME || "lovess";
@@ -393,7 +506,6 @@ async function writeJSON(file, content, msg) {
     return await writeGitHubFile(file, content, msg);
 }
 
-// ==================== 业务 API ====================
 app.get('/api/debug/ip', (req, res) => {
     res.json({ realIP: getRealIP(req) });
 });
@@ -500,7 +612,7 @@ app.post('/api/register', async (req, res) => {
     const { username, password, cardKey, hardwareId } = req.body;
     const ip = getRealIP(req);
     
-    console.log(`注册尝试: ${username} 来自 IP: ${ip}`);
+    console.log(`注册尝试: ${username} 来自 IP: ${ip} 卡密: ${cardKey || '无'}`);
     
     if (bannedIPs.has(ip)) return res.json({ success: false, error: 'IP已被封禁' });
     if (hardwareId && bannedHardware.has(hardwareId)) return res.json({ success: false, error: '此设备已被封禁' });
@@ -508,17 +620,43 @@ app.post('/api/register', async (req, res) => {
     const users = await readJSON('users.json') || {};
     if (users[username]) return res.json({ success: false, error: '用户名已存在' });
     
-    const beautyCards = ["LOVESS-3827", "LOVESS-9156", "LOVESS-4732", "LOVESS-7481", "LOVESS-2069"];
-    const isBeauty = (cardKey && beautyCards.includes(cardKey.trim())) ? 'B' : 'A';
+    let isBeauty = 'A';
+    let usedCard = null;
+    
+    if (cardKey && cardKey.trim() !== '') {
+        const trimmedCard = cardKey.trim().toUpperCase();
+        
+        if (!VALID_CARDS.includes(trimmedCard)) {
+            return res.json({ success: false, error: '卡密无效' });
+        }
+        
+        if (usedCards.has(trimmedCard)) {
+            return res.json({ success: false, error: '卡密已被使用' });
+        }
+        
+        if (BEAUTY_CARDS.includes(trimmedCard)) {
+            isBeauty = 'B';
+        }
+        
+        usedCards.add(trimmedCard);
+        usedCard = trimmedCard;
+        saveUsedCards();
+        logCardVerification(trimmedCard, hardwareId, username, ip, 'register');
+        
+        console.log(`注册使用卡密: ${trimmedCard} -> 用户: ${username} 等级: ${isBeauty === 'B' ? 'B级(靓号)' : 'A级(普通)'}`);
+    }
+    
     const userId = 'U' + Date.now();
     
     users[username] = {
         password, role: 'user', banned: false, isMuted: false,
         userId, isBeauty, avatar: '', registerIP: ip, hardwareId,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        usedCard: usedCard
     };
     await writeJSON('users.json', users, '新用户注册');
-    res.json({ success: true });
+    
+    res.json({ success: true, isBeauty: isBeauty, message: isBeauty === 'B' ? '注册成功！恭喜获得靓号用户身份！' : '注册成功！' });
 });
 
 app.get('/api/user/:username', async (req, res) => {
@@ -533,6 +671,7 @@ app.get('/api/user/:username', async (req, res) => {
 
 loadBannedData();
 loadVisitorsData();
+loadUsedCards();
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
@@ -540,4 +679,5 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`监听端口: ${PORT}`);
     console.log(`已封禁 ${bannedHardware.size} 个硬件, ${bannedIPs.size} 个IP, ${bannedUsers.size} 个用户`);
     console.log(`访客记录: ${visitors.size} 条`);
+    console.log(`卡密统计: 总共 ${VALID_CARDS.length} 个, 已使用 ${usedCards.size} 个`);
 });
