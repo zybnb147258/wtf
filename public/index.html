@@ -470,7 +470,6 @@ function getBeautyBadgeHtml(userId, isBeauty) {
     return "";
 }
 
-// 显示用户主页
 async function showUserProfile(username) {
     try {
         const res = await fetch(`/api/user/${username}`);
@@ -479,10 +478,9 @@ async function showUserProfile(username) {
         const beautyBadge = getBeautyBadgeHtml(user.userId, user.isBeauty);
         document.getElementById('profileContent').innerHTML = `
             <div class="profile-avatar"><i class="fas fa-user fa-3x"></i></div>
-            <h2>${escapeHtml(username)}</h2>
-            <p><strong>ID:</strong> ${user.userId}</p>${beautyBadge}
-            <p><strong>角色:</strong> ${user.role || '用户'}</p>
-            <p><strong>注册时间:</strong> ${new Date(user.createdAt).toLocaleString()}</p>
+            <h2>${escapeHtml(username)}</h2><p><strong>ID:</strong> ${user.userId}</p>${beautyBadge}
+            <p><strong>角色:</strong> ${user.role || '用户'}</p><p><strong>注册时间:</strong> ${new Date(user.createdAt).toLocaleString()}</p>
+            <p><strong>卡密状态:</strong> ${user.hasValidCard ? '已激活' : '未激活'}</p>
             <button class="btn btn-secondary close-profile" onclick="document.getElementById('profileModal').classList.remove('active')">关闭</button>
         `;
         document.getElementById('profileModal').classList.add('active');
@@ -1078,7 +1076,6 @@ document.getElementById('closeCardBtn')?.addEventListener('click', () => {
 
 document.getElementById('toggleGlobalMuteBtn')?.addEventListener('click', toggleGlobalMute);
 
-// 暴露全局函数
 window.showUserProfile = showUserProfile;
 
 // ==================== 初始化 ====================
