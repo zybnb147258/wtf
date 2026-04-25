@@ -280,7 +280,7 @@
 </div>
 
 <div class="container">
-    <nav class="navbar"><div class="logo">LOVESS </div><div class="menu-icon" id="menuToggle"><i class="fas fa-bars"></i></div></nav>
+    <nav class="navbar"><div class="logo">LOVESS</div><div class="menu-icon" id="menuToggle"><i class="fas fa-bars"></i></div></nav>
 
     <div id="reviewsPage" class="page-content active-page">
         <div class="page-header"><h1>用户评价</h1></div>
@@ -354,7 +354,7 @@
         <div id="adminContent" class="card">仅管理员可见</div>
     </div>
     
-    <footer>LOVESS </footer>
+    <footer>LOVESS</footer>
 </div>
 
 <div id="loginModal" class="login-modal"><div class="modal-container"><h2>登录</h2><input id="loginUsername" class="input-field" placeholder="用户名"><input id="loginPassword" type="password" class="input-field" placeholder="密码" style="margin-top:12px;"><div style="display:flex; gap:12px; margin-top:24px;"><button id="doLoginBtn" class="btn" style="flex:1;">登录</button><button id="toRegisterBtn" class="btn btn-secondary" style="flex:1;">去注册</button><button id="closeLoginBtn" class="btn btn-secondary">取消</button></div></div></div>
@@ -372,7 +372,7 @@ class HardwareFingerprint {
             webgl: await this.getWebGL(),
             cpuCores: navigator.hardwareConcurrency || 0,
             memory: navigator.deviceMemory || 0,
-            screen: `${screen.width}x${screen.height}x${screen.colorDepth}`,
+            screen: screen.width + "x" + screen.height + "x" + screen.colorDepth,
             audio: await this.getAudio(),
             fonts: await this.getFonts(),
             touchPoints: navigator.maxTouchPoints || 0,
@@ -420,10 +420,10 @@ class HardwareFingerprint {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         const available = [];
-        for (const font of testFonts) {
-            ctx.font = `20px ${font}`;
+        for (var i = 0; i < testFonts.length; i++) {
+            ctx.font = '20px ' + testFonts[i];
             if (ctx.measureText('测').width > 0) {
-                available.push(font);
+                available.push(testFonts[i]);
             }
         }
         return available.join(',');
@@ -436,8 +436,9 @@ let autoRefreshTimer = null;
 let currentUserData = null;
 let hardwareId = null;
 let globalMuteEnabled = false;
+let hasValidCard = false;
 
-async function verifyCardWithBackend(cardCode, username = null) {
+async function verifyCardWithBackend(cardCode, username) {
     try {
         const response = await fetch('/api/verify-card', {
             method: 'POST',
@@ -454,7 +455,7 @@ async function verifyCardWithBackend(cardCode, username = null) {
         const data = await response.json();
         
         if (data.success) {
-            showToast(`卡密验证成功！等级: ${data.level === 'B' ? '靓号用户' : '普通用户'}`, false);
+            showToast('卡密验证成功！等级: ' + (data.level === 'B' ? '靓号用户' : '普通用户'), false);
             return { success: true, level: data.level };
         } else {
             showToast(data.message || '卡密无效，请检查后重试', true);
@@ -468,87 +469,39 @@ async function verifyCardWithBackend(cardCode, username = null) {
 }
 
 function showToast(msg, isError) {
-    let t = document.createElement('div'); t.className = 'toast';
-    t.innerHTML = `<i class="fas ${isError ? 'fa-exclamation-triangle' : 'fa-check-circle'}"></i> ${msg}`;
-    document.body.appendChild(t); setTimeout(() => t.remove(), 2500);
+    var t = document.createElement('div'); 
+    t.className = 'toast';
+    t.innerHTML = msg;
+    document.body.appendChild(t); 
+    setTimeout(function() { if(t && t.remove) t.remove(); }, 2500);
 }
 
-function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'})[m]); }
+function escapeHtml(str) { 
+    if (!str) return ''; 
+    return String(str).replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    });
+}
 
 function getBeautyBadgeHtml(userId, isBeauty) {
     if (isBeauty === "B") {
-        return `<div class="beauty-badge-b"><div class="stars-container-b"><div class="star-b">★</div><div class="star-b">✦</div><div class="star-b">✧</div><div class="star-b">✦</div></div><span class="beauty-text-b" data-text="靓">靓</span><div class="number-box-b"><span class="beauty-number-b">${escapeHtml(userId)}</span></div><div class="dot-b"></div><div class="dot-b"></div><div class="dot-b"></div></div>`;
+        return '<div class="beauty-badge-b"><div class="stars-container-b"><div class="star-b">★</div><div class="star-b">✦</div><div class="star-b">✧</div><div class="star-b">✦</div></div><span class="beauty-text-b" data-text="靓">靓</span><div class="number-box-b"><span class="beauty-number-b">' + escapeHtml(userId) + '</span></div><div class="dot-b"></div><div class="dot-b"></div><div class="dot-b"></div></div>';
     } else if (isBeauty === "A") {
-        return `<span class="beauty-badge-a">靓号</span>`;
+        return '<span class="beauty-badge-a">靓号</span>';
     }
     return "";
 }
 
-async function registerWithCard(username, password, cardKey) {
-    if (!username || !password) {
-        showToast('请填写用户名和密码', true);
-        return false;
-    }
-    
-    if (cardKey && cardKey.trim() !== '') {
-        const verifyResult = await verifyCardWithBackend(cardKey, username);
-        if (!verifyResult.success) {
-            return false;
-        }
-    }
-    
-    try {
-        const response = await fetch('/api/register', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                username: username,
-                password: password,
-                cardKey: cardKey,
-                hardwareId: hardwareId
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            showToast(data.message || '注册成功！', false);
-            return true;
-        } else {
-            showToast(data.error || '注册失败', true);
-            return false;
-        }
-    } catch (error) {
-        console.error('注册请求失败:', error);
-        showToast('网络错误，请稍后重试', true);
-        return false;
-    }
-}
-
-async function checkCardRequired(cardCode) {
-    if (!cardCode || cardCode.trim() === '') {
-        showToast('请输入卡密', true);
-        return false;
-    }
-    
-    const result = await verifyCardWithBackend(cardCode);
-    return result.success;
-}
-
 async function showUserProfile(username) {
     try {
-        const res = await fetch(`/api/user/${username}`);
+        const res = await fetch('/api/user/' + username);
         const user = await res.json();
         if (!user) { showToast("用户不存在", true); return; }
-        const beautyBadge = getBeautyBadgeHtml(user.userId, user.isBeauty);
-        document.getElementById('profileContent').innerHTML = `
-            <div class="profile-avatar"><i class="fas fa-user fa-3x"></i></div>
-            <h2>${escapeHtml(username)}</h2><p><strong>ID:</strong> ${user.userId}</p>${beautyBadge}
-            <p><strong>角色:</strong> ${user.role || '用户'}</p><p><strong>注册时间:</strong> ${new Date(user.createdAt).toLocaleString()}</p>
-            <button class="btn btn-secondary close-profile" onclick="document.getElementById('profileModal').classList.remove('active')">关闭</button>
-        `;
+        var beautyBadge = getBeautyBadgeHtml(user.userId, user.isBeauty);
+        document.getElementById('profileContent').innerHTML = '<div class="profile-avatar"><i class="fas fa-user fa-3x"></i></div><h2>' + escapeHtml(username) + '</h2><p><strong>ID:</strong> ' + user.userId + '</p>' + beautyBadge + '<p><strong>角色:</strong> ' + (user.role || '用户') + '</p><p><strong>注册时间:</strong> ' + new Date(user.createdAt).toLocaleString() + '</p><button class="btn btn-secondary close-profile" onclick="document.getElementById(\'profileModal\').classList.remove(\'active\')">关闭</button>';
         document.getElementById('profileModal').classList.add('active');
     } catch(e) { showToast("获取用户信息失败", true); }
 }
@@ -589,7 +542,7 @@ async function verifyCard(cardKey) {
         return false;
     }
     
-    const result = await verifyCardWithBackend(cardKey, currentUser);
+    var result = await verifyCardWithBackend(cardKey, currentUser);
     
     if (result.success) {
         hasValidCard = true;
@@ -614,10 +567,10 @@ function refreshExecutorAccess() {
 
 async function initHardwareFingerprint() {
     try {
-        const fp = new HardwareFingerprint();
-        const features = await fp.generate();
+        var fp = new HardwareFingerprint();
+        var features = await fp.generate();
         
-        const res = await fetch('/api/fingerprint/register', {
+        var res = await fetch('/api/fingerprint/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
@@ -626,11 +579,11 @@ async function initHardwareFingerprint() {
             })
         });
         
-        const data = await res.json();
+        var data = await res.json();
         
         if (data.banned) {
-            showToast(data.error || 'idiot', true);
-            document.body.innerHTML = `<div style="text-align:center;padding:100px;color:#ef4444;"><i class="fas fa-shield-alt" style="font-size:64px;"></i><h1>FUCK YOU M</h1><p>${data.error || 'banned'}</p></div>`;
+            showToast(data.error || '设备已被封禁', true);
+            document.body.innerHTML = '<div style="text-align:center;padding:100px;color:#ef4444;"><i class="fas fa-shield-alt" style="font-size:64px;"></i><h1>设备已被封禁</h1><p>' + (data.error || 'banned') + '</p></div>';
             return false;
         }
         
@@ -645,7 +598,7 @@ async function initHardwareFingerprint() {
     }
 }
 
-const originalFetch = window.fetch;
+var originalFetch = window.fetch;
 window.fetch = function(url, options) {
     options = options || {};
     options.headers = options.headers || {};
@@ -657,31 +610,31 @@ window.fetch = function(url, options) {
 
 async function initGlobalMute() {
     try {
-        const res = await fetch('/api/admin/globalMuteStatus');
-        const data = await res.json();
+        var res = await fetch('/api/admin/globalMuteStatus');
+        var data = await res.json();
         globalMuteEnabled = data.enabled;
         updateGlobalMuteUI();
     } catch(e) { console.error(e); }
 }
 
 function updateGlobalMuteUI() {
-    const indicator = document.getElementById('globalMuteIndicator');
-    const statusDiv = document.getElementById('globalMuteStatus');
+    var indicator = document.getElementById('globalMuteIndicator');
+    var statusDiv = document.getElementById('globalMuteStatus');
     
     if (indicator) {
         indicator.style.display = globalMuteEnabled ? 'inline-block' : 'none';
     }
     
     if (statusDiv && currentRole === 'owner') {
-        statusDiv.innerHTML = `<div class="card" style="display: inline-block; padding: 8px 20px;">当前状态: ${globalMuteEnabled ? '<span style="background:#ef4444; padding:4px 12px; border-radius:20px;">全局禁言已开启</span>' : '<span style="background:#10b981; padding:4px 12px; border-radius:20px;">全局禁言已关闭</span>'}</div>`;
+        statusDiv.innerHTML = '<div class="card" style="display: inline-block; padding: 8px 20px;">当前状态: ' + (globalMuteEnabled ? '<span style="background:#ef4444; padding:4px 12px; border-radius:20px;">全局禁言已开启</span>' : '<span style="background:#10b981; padding:4px 12px; border-radius:20px;">全局禁言已关闭</span>') + '</div>';
     }
 }
 
 async function toggleGlobalMute() {
     if (currentRole !== 'owner') { showToast("只有管理员可以操作", true); return; }
     try {
-        const res = await fetch('/api/admin/toggleGlobalMute', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
-        const data = await res.json();
+        var res = await fetch('/api/admin/toggleGlobalMute', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+        var data = await res.json();
         globalMuteEnabled = data.enabled;
         updateGlobalMuteUI();
         showToast(globalMuteEnabled ? "全局禁言已开启" : "全局禁言已关闭", false);
@@ -690,30 +643,31 @@ async function toggleGlobalMute() {
 
 async function renderGames() {
     if (!checkGameAccess()) return;
-    let container = document.getElementById('gamesContainer');
+    var container = document.getElementById('gamesContainer');
     try {
-        const res = await fetch('/api/games');
-        let games = await res.json();
-        container.innerHTML = games.map(game => `<div class="game-card"><h3>${escapeHtml(game.name)}</h3><div class="game-player-count"><i class="fas fa-users"></i> 在线人数: ${game.players}</div><p>${escapeHtml(game.description)}</p><button class="btn btn-secondary" onclick="window.open('${game.link}','_blank')">开始游戏</button></div>`).join('');
+        var res = await fetch('/api/games');
+        var games = await res.json();
+        var html = '';
+        for (var i = 0; i < games.length; i++) {
+            html += '<div class="game-card"><h3>' + escapeHtml(games[i].name) + '</h3><div class="game-player-count"><i class="fas fa-users"></i> 在线人数: ' + games[i].players + '</div><p>' + escapeHtml(games[i].description) + '</p><button class="btn btn-secondary" onclick="window.open(\'' + games[i].link + '\',\'_blank\')">开始游戏</button></div>';
+        }
+        container.innerHTML = html;
         document.getElementById('statGameCount').innerText = games.length;
-        document.getElementById('statTotalPlayers').innerText = games.reduce((s,g)=>s+(g.players||0),0);
+        var totalPlayers = 0;
+        for (var i = 0; i < games.length; i++) totalPlayers += (games[i].players || 0);
+        document.getElementById('statTotalPlayers').innerText = totalPlayers;
     } catch(e) { console.error(e); }
 }
 
 async function renderReviews() {
-    if (!currentUser) {
-        try {
-            const res = await fetch('/api/reviews');
-            const reviews = await res.json();
-            document.getElementById('reviewsList').innerHTML = reviews.length === 0 ? '<div>暂无评价</div>' : reviews.map(r => `<div class="review-item"><div><strong>${escapeHtml(r.name)}</strong> ${'★'.repeat(r.rating)}<p>${escapeHtml(r.text)}</p></div></div>`).join('');
-            document.getElementById('statReviewCount').innerText = reviews.length;
-        } catch(e) { console.error(e); }
-        return;
-    }
     try {
-        const res = await fetch('/api/reviews');
-        const reviews = await res.json();
-        document.getElementById('reviewsList').innerHTML = reviews.length === 0 ? '<div>暂无评价</div>' : reviews.map(r => `<div class="review-item"><div><strong>${escapeHtml(r.name)}</strong> ${'★'.repeat(r.rating)}<p>${escapeHtml(r.text)}</p></div>${currentRole === 'owner' ? `<button class="review-delete" onclick="deleteReview(${r.id})">删除</button>` : ''}</div>`).join('');
+        var res = await fetch('/api/reviews');
+        var reviews = await res.json();
+        var html = '';
+        for (var i = 0; i < reviews.length; i++) {
+            html += '<div class="review-item"><div><strong>' + escapeHtml(reviews[i].name) + '</strong> ' + '★'.repeat(reviews[i].rating) + '<p>' + escapeHtml(reviews[i].text) + '</p></div>' + (currentRole === 'owner' ? '<button class="review-delete" onclick="deleteReview(' + reviews[i].id + ')">删除</button>' : '') + '</div>';
+        }
+        document.getElementById('reviewsList').innerHTML = reviews.length === 0 ? '<div>暂无评价</div>' : html;
         document.getElementById('statReviewCount').innerText = reviews.length;
     } catch(e) { console.error(e); }
 }
@@ -721,38 +675,41 @@ async function renderReviews() {
 async function submitReview() {
     if (!currentUser) { showToast("请先登录", true); return; }
     if (globalMuteEnabled && currentRole !== 'owner') { showToast("系统维护中，评价功能已关闭", true); return; }
-    let content = document.getElementById('newReviewContent').value.trim();
-    let rating = parseInt(document.getElementById('newReviewRating').value);
+    var content = document.getElementById('newReviewContent').value.trim();
+    var rating = parseInt(document.getElementById('newReviewRating').value);
     if (!content) { showToast("请输入评价内容", true); return; }
     await fetch('/api/review', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: currentUser, rating, text: content })
+        body: JSON.stringify({ name: currentUser, rating: rating, text: content })
     });
     showToast("评价发布成功", false);
     document.getElementById('newReviewContent').value = '';
     renderReviews();
 }
 
-window.deleteReview = async (id) => {
+window.deleteReview = async function(id) {
     if (currentRole !== 'owner') return;
-    await fetch('/api/review/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+    await fetch('/api/review/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id }) });
     renderReviews();
 };
 
 async function renderChats(room) {
     if (!currentUser) return;
     try {
-        const res = await fetch(`/api/chats/${room}`);
-        let msgs = await res.json();
-        let box = document.getElementById('chatMsgs');
+        var res = await fetch('/api/chats/' + room);
+        var msgs = await res.json();
+        var box = document.getElementById('chatMsgs');
         if (box) {
-            box.innerHTML = msgs.map(m => {
-                const isOwn = m.user === currentUser;
-                const beautyBadge = getBeautyBadgeHtml(m.userId, m.isBeauty);
-                const avatarHtml = `<div class="avatar-img" onclick="showUserProfile('${escapeHtml(m.user)}')"><i class="fas fa-user"></i></div>`;
-                return `<div class="msg-bubble ${isOwn ? 'msg-own' : ''}" style="display:flex; align-items:flex-start;">${!isOwn ? avatarHtml : ''}<div style="flex:1;"><strong>${escapeHtml(m.user)}</strong>${beautyBadge}<span style="font-size:0.7rem; margin-left:8px;">${m.time}</span><br>${escapeHtml(m.text)}</div>${isOwn ? avatarHtml : ''}</div>`;
-            }).join('');
+            var html = '';
+            for (var i = 0; i < msgs.length; i++) {
+                var m = msgs[i];
+                var isOwn = m.user === currentUser;
+                var beautyBadge = getBeautyBadgeHtml(m.userId, m.isBeauty);
+                var avatarHtml = '<div class="avatar-img" onclick="showUserProfile(\'' + escapeHtml(m.user) + '\')"><i class="fas fa-user"></i></div>';
+                html += '<div class="msg-bubble ' + (isOwn ? 'msg-own' : '') + '" style="display:flex; align-items:flex-start;">' + (!isOwn ? avatarHtml : '') + '<div style="flex:1;"><strong>' + escapeHtml(m.user) + '</strong>' + beautyBadge + '<span style="font-size:0.7rem; margin-left:8px;">' + m.time + '</span><br>' + escapeHtml(m.text) + '</div>' + (isOwn ? avatarHtml : '') + '</div>';
+            }
+            box.innerHTML = html;
             box.scrollTop = box.scrollHeight;
         }
     } catch(e) { console.error(e); }
@@ -761,12 +718,12 @@ async function renderChats(room) {
 async function sendChat() {
     if (!currentUser) { showToast("请先登录", true); return; }
     if (!canSendMessage()) return;
-    let inp = document.getElementById('chatInput');
+    var inp = document.getElementById('chatInput');
     if (!inp.value.trim()) return;
     await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user: currentUser, text: inp.value, room: currentRoom, userId: currentUserData?.userId || "", isBeauty: currentUserData?.isBeauty || "A" })
+        body: JSON.stringify({ user: currentUser, text: inp.value, room: currentRoom, userId: (currentUserData && currentUserData.userId) || "", isBeauty: (currentUserData && currentUserData.isBeauty) || "A" })
     });
     renderChats(currentRoom);
     inp.value = '';
@@ -775,21 +732,25 @@ async function sendChat() {
 async function renderScripts() {
     if (!currentUser) return;
     try {
-        const res = await fetch('/api/scripts');
-        let scripts = await res.json();
-        document.getElementById('scriptsContainer').innerHTML = scripts.length === 0 ? '<div>暂无脚本</div>' : scripts.map(s => `<div class="script-card"><h4>${escapeHtml(s.name)}</h4><p>${escapeHtml(s.desc)}</p><small>作者: ${escapeHtml(s.author)}</small></div>`).join('');
+        var res = await fetch('/api/scripts');
+        var scripts = await res.json();
+        var html = '';
+        for (var i = 0; i < scripts.length; i++) {
+            html += '<div class="script-card"><h4>' + escapeHtml(scripts[i].name) + '</h4><p>' + escapeHtml(scripts[i].desc) + '</p><small>作者: ' + escapeHtml(scripts[i].author) + '</small></div>';
+        }
+        document.getElementById('scriptsContainer').innerHTML = scripts.length === 0 ? '<div>暂无脚本</div>' : html;
     } catch(e) { console.error(e); }
 }
 
 async function uploadScript() {
     if (!currentUser) { showToast("请先登录", true); return; }
-    let name = document.getElementById('scriptName').value.trim();
-    let desc = document.getElementById('scriptDesc').value.trim();
+    var name = document.getElementById('scriptName').value.trim();
+    var desc = document.getElementById('scriptDesc').value.trim();
     if (!name || !desc) { showToast("请填写完整", true); return; }
     await fetch('/api/script/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, desc, author: currentUser })
+        body: JSON.stringify({ name: name, desc: desc, author: currentUser })
     });
     showToast("已提交审核", false);
     document.getElementById('scriptName').value = '';
@@ -800,18 +761,23 @@ async function uploadScript() {
 async function renderWhitelistPage() {
     if (!checkWhitelistAccess()) return;
     try {
-        const res = await fetch('/api/whitelist');
-        let whitelist = await res.json();
-        document.getElementById('whitelistContent').innerHTML = `<h3>白名单用户</h3><div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px;">${(whitelist || []).map(u => `<span class="tab">${escapeHtml(u)}</span>`).join('')}</div><div style="display:flex; gap:12px;"><input id="whitelistName" class="input-field" placeholder="添加用户"><button id="addWhitelistBtn" class="btn btn-success">添加</button></div>`;
+        var res = await fetch('/api/whitelist');
+        var whitelist = await res.json();
+        var html = '<h3>白名单用户</h3><div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px;">';
+        for (var i = 0; i < (whitelist || []).length; i++) {
+            html += '<span class="tab">' + escapeHtml(whitelist[i]) + '</span>';
+        }
+        html += '</div><div style="display:flex; gap:12px;"><input id="whitelistName" class="input-field" placeholder="添加用户"><button id="addWhitelistBtn" class="btn btn-success">添加</button></div>';
+        document.getElementById('whitelistContent').innerHTML = html;
         document.getElementById('addWhitelistBtn')?.addEventListener('click', addToWhitelist);
     } catch(e) { console.error(e); }
 }
 
 async function addToWhitelist() {
-    let name = document.getElementById('whitelistName')?.value.trim();
+    var name = document.getElementById('whitelistName')?.value.trim();
     if (!name) return;
-    await fetch('/api/whitelist/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
-    showToast(`已添加 ${name}`, false);
+    await fetch('/api/whitelist/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: name }) });
+    showToast('已添加 ' + name, false);
     renderWhitelistPage();
 }
 
@@ -819,167 +785,145 @@ async function renderAdminPanel() {
     if (!checkAdminAccess()) return;
     
     try {
-        const [usersRes, scriptsRes, reviewsRes, bannedRes, visitorsRes] = await Promise.all([
-            fetch('/api/admin/users'),
-            fetch('/api/admin/pending'),
-            fetch('/api/reviews'),
-            fetch('/api/admin/banned'),
-            fetch('/api/admin/visitors')
-        ]);
+        var usersRes = await fetch('/api/admin/users');
+        var scriptsRes = await fetch('/api/admin/pending');
+        var reviewsRes = await fetch('/api/reviews');
+        var bannedRes = await fetch('/api/admin/banned');
+        var visitorsRes = await fetch('/api/admin/visitors');
         
-        let users = await usersRes.json();
-        let pending = await scriptsRes.json();
-        let reviews = await reviewsRes.json();
-        let bannedData = await bannedRes.json();
-        let visitors = await visitorsRes.json();
+        var users = await usersRes.json();
+        var pending = await scriptsRes.json();
+        var reviews = await reviewsRes.json();
+        var bannedData = await bannedRes.json();
+        var visitors = await visitorsRes.json();
         
-        const bannedHardware = new Set(bannedData.bannedHardware || []);
+        var bannedHardware = new Set(bannedData.bannedHardware || []);
         
-        let container = document.getElementById('adminContent');
-        container.innerHTML = `
-            <h3><i class="fas fa-chart-line"></i> 系统统计</h3>
-            <p>注册用户: ${users.length} | 待审核脚本: ${pending.length} | 评价: ${reviews.length} | 已封禁硬件: ${bannedHardware.size}</p>
-            
-            <h3 style="margin-top:20px;"><i class="fas fa-user-secret"></i> 未注册访客追踪</h3>
-            <div id="visitorsList" style="max-height:300px;overflow-y:auto;margin-bottom:20px;"></div>
-            
-            <h3 style="margin-top:20px;"><i class="fas fa-microchip"></i> 硬件指纹管理</h3>
-            <div id="hardwareList" style="max-height:300px;overflow-y:auto;margin-bottom:20px;"></div>
-            
-            <h3 style="margin-top:20px;"><i class="fas fa-users"></i> 用户管理</h3>
-            <div id="userMgmt"></div>
-            
-            <h3 style="margin-top:20px;"><i class="fas fa-clock"></i> 待审核脚本</h3>
-            <div id="pendingScripts"></div>
-        `;
+        var container = document.getElementById('adminContent');
+        container.innerHTML = '<h3><i class="fas fa-chart-line"></i> 系统统计</h3><p>注册用户: ' + users.length + ' | 待审核脚本: ' + pending.length + ' | 评价: ' + reviews.length + ' | 已封禁硬件: ' + bannedHardware.size + '</p><h3 style="margin-top:20px;"><i class="fas fa-user-secret"></i> 未注册访客追踪</h3><div id="visitorsList" style="max-height:300px;overflow-y:auto;margin-bottom:20px;"></div><h3 style="margin-top:20px;"><i class="fas fa-microchip"></i> 硬件指纹管理</h3><div id="hardwareList" style="max-height:300px;overflow-y:auto;margin-bottom:20px;"></div><h3 style="margin-top:20px;"><i class="fas fa-users"></i> 用户管理</h3><div id="userMgmt"></div><h3 style="margin-top:20px;"><i class="fas fa-clock"></i> 待审核脚本</h3><div id="pendingScripts"></div>';
         
-        let visitorsHtml = '<div style="border:1px solid var(--border);border-radius:12px;">';
+        var visitorsHtml = '<div style="border:1px solid var(--border);border-radius:12px;">';
         if (visitors.length === 0) {
             visitorsHtml += '<div style="padding:20px;text-align:center;">暂无访客记录</div>';
         } else {
-            for (const v of visitors) {
-                visitorsHtml += `<div class="visitor-item">
-                    <div><strong>IP:</strong> ${escapeHtml(v.ip)}</div>
-                    <div><strong>硬件ID:</strong> <span class="hwid-badge">${escapeHtml(v.hardwareId?.substring(0, 48) || '未知')}...</span></div>
-                    <div><strong>首次访问:</strong> ${new Date(v.firstSeen).toLocaleString()}</div>
-                    <div><strong>访问次数:</strong> ${v.visitCount || 1}</div>
-                    <div><strong>WebGL:</strong> ${escapeHtml(v.webgl?.substring(0, 50) || '未知')}</div>
-                    <div style="margin-top:8px;">
-                        <button class="ban-btn" onclick="banVisitor('${v.ip}', '${v.hardwareId}')">封禁IP+硬件</button>
-                    </div>
-                </div>`;
+            for (var i = 0; i < visitors.length; i++) {
+                var v = visitors[i];
+                visitorsHtml += '<div class="visitor-item"><div><strong>IP:</strong> ' + escapeHtml(v.ip) + '</div><div><strong>硬件ID:</strong> <span class="hwid-badge">' + escapeHtml((v.hardwareId && v.hardwareId.substring(0, 48)) || '未知') + '...</span></div><div><strong>首次访问:</strong> ' + new Date(v.firstSeen).toLocaleString() + '</div><div><strong>访问次数:</strong> ' + (v.visitCount || 1) + '</div><div><strong>WebGL:</strong> ' + escapeHtml((v.webgl && v.webgl.substring(0, 50)) || '未知') + '</div><div style="margin-top:8px;"><button class="ban-btn" onclick="banVisitor(\'' + v.ip + '\', \'' + v.hardwareId + '\')">封禁IP+硬件</button></div></div>';
             }
         }
         visitorsHtml += '</div>';
         document.getElementById('visitorsList').innerHTML = visitorsHtml;
         
-        const hardwareMap = new Map();
-        for (const user of users) {
-            if (user.hardwareId) {
-                if (!hardwareMap.has(user.hardwareId)) hardwareMap.set(user.hardwareId, []);
-                hardwareMap.get(user.hardwareId).push(user.name);
+        var hardwareMap = new Map();
+        for (var i = 0; i < users.length; i++) {
+            if (users[i].hardwareId) {
+                if (!hardwareMap.has(users[i].hardwareId)) hardwareMap.set(users[i].hardwareId, []);
+                hardwareMap.get(users[i].hardwareId).push(users[i].name);
             }
         }
-        let hardwareHtml = '<div style="border:1px solid var(--border);border-radius:12px;">';
-        for (const [hwId, usersList] of hardwareMap) {
-            const isBanned = bannedHardware.has(hwId);
-            hardwareHtml += `<div class="admin-row">
-                <span><span class="hwid-badge">${escapeHtml(hwId)}</span><br><small>关联用户: ${usersList.join(', ')}</small></span>
-                <div>
-                    ${!isBanned ? `<button class="ban-btn" onclick="banHardware('${hwId}')">封禁硬件</button>` : `<button class="ban-btn ban-btn-success" onclick="unbanHardware('${hwId}')">解封硬件</button>`}
-                </div>
-            </div>`;
+        var hardwareHtml = '<div style="border:1px solid var(--border);border-radius:12px;">';
+        for (var _iterator = hardwareMap, _isArray = Array.isArray(_iterator), _i = 0, _iterator = _isArray ? _iterator : _iterator[Symbol.iterator]();;) {
+            var _ref;
+            if (_isArray) {
+                if (_i >= _iterator.length) break;
+                _ref = _iterator[_i++];
+            } else {
+                _i = _iterator.next();
+                if (_i.done) break;
+                _ref = _i.value;
+            }
+            var _ref2 = _ref,
+                hwId = _ref2[0],
+                usersList = _ref2[1];
+            var isBanned = bannedHardware.has(hwId);
+            hardwareHtml += '<div class="admin-row"><span><span class="hwid-badge">' + escapeHtml(hwId) + '</span><br><small>关联用户: ' + usersList.join(', ') + '</small></span><div>' + (!isBanned ? '<button class="ban-btn" onclick="banHardware(\'' + hwId + '\')">封禁硬件</button>' : '<button class="ban-btn ban-btn-success" onclick="unbanHardware(\'' + hwId + '\')">解封硬件</button>') + '</div></div>';
         }
         if (hardwareMap.size === 0) hardwareHtml += '<div style="padding:20px;text-align:center;">暂无硬件记录</div>';
         hardwareHtml += '</div>';
         document.getElementById('hardwareList').innerHTML = hardwareHtml;
         
-        document.getElementById('userMgmt').innerHTML = users.map(user => `
-            <div class="admin-row">
-                <span><strong>${escapeHtml(user.name)}</strong> (${user.role}) | ${user.banned ? '<span style="color:#ef4444;">已封禁</span>' : '正常'} ${user.isMuted ? '🔇' : ''}<br><small class="hwid-badge">HW: ${user.hardwareId?.substring(0, 16) || '无'}...</small></span>
-                <div>
-                    <button class="ban-btn" onclick="toggleBanUser('${escapeHtml(user.name)}')">${user.banned ? '解封' : '封禁'}</button>
-                    <button class="ban-btn" onclick="toggleMuteUser('${escapeHtml(user.name)}')">${user.isMuted ? '解除禁言' : '禁言'}</button>
-                    <button class="ban-btn" style="background:#d946ef;" onclick="banUserHardware('${escapeHtml(user.name)}', '${user.hardwareId || ''}')">封禁账号+硬件</button>
-                </div>
-            </div>
-        `).join('');
+        var userHtml = '';
+        for (var i = 0; i < users.length; i++) {
+            var user = users[i];
+            userHtml += '<div class="admin-row"><span><strong>' + escapeHtml(user.name) + '</strong> (' + user.role + ') | ' + (user.banned ? '<span style="color:#ef4444;">已封禁</span>' : '正常') + ' ' + (user.isMuted ? '🔇' : '') + '<br><small class="hwid-badge">HW: ' + ((user.hardwareId && user.hardwareId.substring(0, 16)) || '无') + '...</small></span><div><button class="ban-btn" onclick="toggleBanUser(\'' + escapeHtml(user.name) + '\')">' + (user.banned ? '解封' : '封禁') + '</button><button class="ban-btn" onclick="toggleMuteUser(\'' + escapeHtml(user.name) + '\')">' + (user.isMuted ? '解除禁言' : '禁言') + '</button><button class="ban-btn" style="background:#d946ef;" onclick="banUserHardware(\'' + escapeHtml(user.name) + '\', \'' + (user.hardwareId || '') + '\')">封禁账号+硬件</button></div></div>';
+        }
+        document.getElementById('userMgmt').innerHTML = userHtml;
         
-        document.getElementById('pendingScripts').innerHTML = pending.length === 0 ? '<div>暂无待审核</div>' : pending.map(s => `
-            <div class="admin-row">
-                <div><strong>${escapeHtml(s.name)}</strong><br>${escapeHtml(s.desc)}<br>作者: ${escapeHtml(s.author)}</div>
-                <div><button class="ban-btn ban-btn-success" onclick="approveScript(${s.id})">通过</button><button class="ban-btn" onclick="rejectScript(${s.id})">拒绝</button></div>
-            </div>
-        `).join('');
+        var pendingHtml = '';
+        for (var i = 0; i < pending.length; i++) {
+            var s = pending[i];
+            pendingHtml += '<div class="admin-row"><div><strong>' + escapeHtml(s.name) + '</strong><br>' + escapeHtml(s.desc) + '<br>作者: ' + escapeHtml(s.author) + '</div><div><button class="ban-btn ban-btn-success" onclick="approveScript(' + s.id + ')">通过</button><button class="ban-btn" onclick="rejectScript(' + s.id + ')">拒绝</button></div></div>';
+        }
+        document.getElementById('pendingScripts').innerHTML = pending.length === 0 ? '<div>暂无待审核</div>' : pendingHtml;
         
         updateGlobalMuteUI();
     } catch(e) { console.error(e); }
 }
 
-window.banVisitor = async (ip, hardwareId) => {
-    if (!confirm(`封禁访客 IP: ${ip} 及其硬件?`)) return;
-    if (hardwareId) await fetch('/api/admin/banHardware', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ hardwareId }) });
-    await fetch('/api/admin/banIP', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ip }) });
+window.banVisitor = async function(ip, hardwareId) {
+    if (!confirm('封禁访客 IP: ' + ip + ' 及其硬件?')) return;
+    if (hardwareId) await fetch('/api/admin/banHardware', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ hardwareId: hardwareId }) });
+    await fetch('/api/admin/banIP', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ip: ip }) });
     showToast("已封禁", false);
     renderAdminPanel();
 };
 
-window.banHardware = async (hardwareId) => {
-    await fetch('/api/admin/banHardware', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ hardwareId }) });
+window.banHardware = async function(hardwareId) {
+    await fetch('/api/admin/banHardware', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ hardwareId: hardwareId }) });
     showToast("硬件已封禁", false);
     renderAdminPanel();
 };
 
-window.unbanHardware = async (hardwareId) => {
-    await fetch('/api/admin/unbanHardware', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ hardwareId }) });
+window.unbanHardware = async function(hardwareId) {
+    await fetch('/api/admin/unbanHardware', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ hardwareId: hardwareId }) });
     showToast("硬件已解封", false);
     renderAdminPanel();
 };
 
-window.banUserHardware = async (username, hardwareId) => {
-    if (!confirm(`封禁用户 ${username} 及其硬件?`)) return;
-    await fetch('/api/admin/banUserHardware', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, hardwareId }) });
+window.banUserHardware = async function(username, hardwareId) {
+    if (!confirm('封禁用户 ' + username + ' 及其硬件?')) return;
+    await fetch('/api/admin/banUserHardware', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: username, hardwareId: hardwareId }) });
     showToast("已封禁", false);
     renderAdminPanel();
 };
 
-window.toggleBanUser = async (username) => {
-    await fetch('/api/admin/toggleBan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username }) });
+window.toggleBanUser = async function(username) {
+    await fetch('/api/admin/toggleBan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: username }) });
     renderAdminPanel();
 };
 
-window.toggleMuteUser = async (username) => {
-    await fetch('/api/admin/toggleMute', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username }) });
+window.toggleMuteUser = async function(username) {
+    await fetch('/api/admin/toggleMute', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: username }) });
     renderAdminPanel();
 };
 
-window.approveScript = async (id) => {
-    await fetch('/api/admin/approveScript', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+window.approveScript = async function(id) {
+    await fetch('/api/admin/approveScript', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id }) });
     renderAdminPanel();
     renderScripts();
 };
 
-window.rejectScript = async (id) => {
-    await fetch('/api/admin/rejectScript', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+window.rejectScript = async function(id) {
+    await fetch('/api/admin/rejectScript', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id }) });
     renderAdminPanel();
     renderScripts();
 };
 
 async function login(username, password) {
     try {
-        const res = await fetch('/api/login', { 
+        var res = await fetch('/api/login', { 
             method: 'POST', 
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password, hardwareId })
+            body: JSON.stringify({ username: username, password: password, hardwareId: hardwareId })
         });
-        const data = await res.json();
+        var data = await res.json();
         
         if (data.success) {
             currentUser = username;
             currentRole = data.role;
             currentUserData = { userId: data.userId, isBeauty: data.isBeauty || "A" };
             updateSidebarUI();
-            showToast(`欢迎回来，${username}`, false);
+            showToast('欢迎回来，' + username, false);
             document.getElementById('loginModal').classList.remove('active');
             
             await initHardwareFingerprint();
@@ -1007,12 +951,12 @@ async function register(username, password, cardKey) {
     if (username.length < 3) { showToast("用户名至少3位", true); return false; }
     if (password.length < 3) { showToast("密码至少3位", true); return false; }
     try {
-        const res = await fetch('/api/register', { 
+        var res = await fetch('/api/register', { 
             method: 'POST', 
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password, cardKey, hardwareId })
+            body: JSON.stringify({ username: username, password: password, cardKey: cardKey, hardwareId: hardwareId })
         });
-        const data = await res.json();
+        var data = await res.json();
         if (data.success) {
             showToast("注册成功！", false);
             return true;
@@ -1039,10 +983,15 @@ function logout() {
 }
 
 function updateSidebarUI() {
-    let btn = document.getElementById('sidebarUserBtn');
+    var btn = document.getElementById('sidebarUserBtn');
     if (btn) {
-        if (currentUser) { btn.innerHTML = `<i class="fas fa-user"></i> ${currentUser} (登出)`; btn.onclick = () => logout(); }
-        else { btn.innerHTML = "<i class='fas fa-sign-in-alt'></i> 登录/注册"; btn.onclick = () => document.getElementById('loginModal').classList.add('active'); }
+        if (currentUser) { 
+            btn.innerHTML = '<i class="fas fa-user"></i> ' + currentUser + ' (登出)'; 
+            btn.onclick = function() { logout(); }; 
+        } else { 
+            btn.innerHTML = "<i class='fas fa-sign-in-alt'></i> 登录/注册"; 
+            btn.onclick = function() { document.getElementById('loginModal').classList.add('active'); }; 
+        }
     }
 }
 
@@ -1052,12 +1001,20 @@ function switchPage(pageId) {
     if (pageId === 'whitelist') { if (!checkWhitelistAccess()) return; }
     if (pageId === 'admin') { if (!checkAdminAccess()) return; }
     
-    document.querySelectorAll('.page-content').forEach(p => p.classList.remove('active-page'));
-    let target = document.getElementById(pageId + 'Page');
+    var pages = document.querySelectorAll('.page-content');
+    for (var i = 0; i < pages.length; i++) pages[i].classList.remove('active-page');
+    var target = document.getElementById(pageId + 'Page');
     if (target) target.classList.add('active-page');
     
-    document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active-side'));
-    let activeLink = Array.from(document.querySelectorAll('.sidebar-link')).find(l => l.dataset.page === pageId);
+    var links = document.querySelectorAll('.sidebar-link');
+    for (var i = 0; i < links.length; i++) links[i].classList.remove('active-side');
+    var activeLink = null;
+    for (var i = 0; i < links.length; i++) {
+        if (links[i].dataset.page === pageId) {
+            activeLink = links[i];
+            break;
+        }
+    }
     if (activeLink) activeLink.classList.add('active-side');
     
     closeSidebar();
@@ -1072,59 +1029,87 @@ function switchPage(pageId) {
 
 function startAutoRefresh() {
     if (autoRefreshTimer) clearInterval(autoRefreshTimer);
-    autoRefreshTimer = setInterval(async () => {
-        if (document.getElementById('chatPage')?.classList.contains('active-page') && currentUser) 
-            await renderChats(currentRoom);
-        if (document.getElementById('adminPage')?.classList.contains('active-page') && currentRole === 'owner') 
-            await renderAdminPanel();
+    autoRefreshTimer = setInterval(function() {
+        if (document.getElementById('chatPage') && document.getElementById('chatPage').classList.contains('active-page') && currentUser) 
+            renderChats(currentRoom);
+        if (document.getElementById('adminPage') && document.getElementById('adminPage').classList.contains('active-page') && currentRole === 'owner') 
+            renderAdminPanel();
     }, 5000);
 }
 
-const sidebarEl = document.getElementById('sidebar'), overlay = document.getElementById('sidebarOverlay');
-document.getElementById('menuToggle').onclick = () => { sidebarEl.classList.add('open'); overlay.classList.add('active'); };
-function closeSidebar() { sidebarEl.classList.remove('open'); overlay.classList.remove('active'); }
-overlay.onclick = closeSidebar;
-document.querySelectorAll('.sidebar-link').forEach(link => { link.addEventListener('click', (e) => { let pg = e.currentTarget.dataset.page; if (pg) switchPage(pg); }); });
+// 修复：确保 DOM 加载完成后再绑定事件
+document.addEventListener('DOMContentLoaded', function() {
+    var sidebarEl = document.getElementById('sidebar');
+    var overlay = document.getElementById('sidebarOverlay');
+    var menuToggle = document.getElementById('menuToggle');
+    
+    if (menuToggle) {
+        menuToggle.onclick = function() { 
+            if (sidebarEl) sidebarEl.classList.add('open'); 
+            if (overlay) overlay.classList.add('active'); 
+        };
+    }
+    
+    window.closeSidebar = function() { 
+        if (sidebarEl) sidebarEl.classList.remove('open'); 
+        if (overlay) overlay.classList.remove('active'); 
+    };
+    
+    if (overlay) {
+        overlay.onclick = window.closeSidebar;
+    }
+    
+    var sidebarLinks = document.querySelectorAll('.sidebar-link');
+    for (var i = 0; i < sidebarLinks.length; i++) {
+        sidebarLinks[i].addEventListener('click', function(e) { 
+            var pg = e.currentTarget.dataset.page; 
+            if (pg) switchPage(pg); 
+        });
+    }
+});
 
 document.getElementById('sendChatBtn')?.addEventListener('click', sendChat);
-document.getElementById('chatInput')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendChat(); });
-document.querySelectorAll('#chatTabs .tab').forEach(t => {
-    t.addEventListener('click', () => {
-        document.querySelectorAll('#chatTabs .tab').forEach(tt => tt.classList.remove('active'));
-        t.classList.add('active');
-        currentRoom = t.dataset.room;
+document.getElementById('chatInput')?.addEventListener('keypress', function(e) { if (e.key === 'Enter') sendChat(); });
+var chatTabs = document.querySelectorAll('#chatTabs .tab');
+for (var i = 0; i < chatTabs.length; i++) {
+    chatTabs[i].addEventListener('click', function() {
+        var tabs = document.querySelectorAll('#chatTabs .tab');
+        for (var j = 0; j < tabs.length; j++) tabs[j].classList.remove('active');
+        this.classList.add('active');
+        currentRoom = this.dataset.room;
         if (currentUser) renderChats(currentRoom);
     });
-});
+}
 document.getElementById('refreshGamesBtn')?.addEventListener('click', renderGames);
 document.getElementById('uploadScriptBtn')?.addEventListener('click', uploadScript);
 document.getElementById('submitReviewBtn')?.addEventListener('click', submitReview);
-document.getElementById('executeBtn')?.addEventListener('click', () => { 
+document.getElementById('executeBtn')?.addEventListener('click', function() { 
     if (!checkExecutorAccess()) return;
-    let code = document.getElementById('executorCode').value; 
-    document.getElementById('executorLog').innerHTML += `\n> 执行: ${code.substring(0,60)}...`; 
+    var code = document.getElementById('executorCode').value; 
+    var log = document.getElementById('executorLog');
+    log.innerHTML += '\n> 执行: ' + code.substring(0,60) + '...'; 
     showToast("已执行", false); 
 });
-document.getElementById('clearExecutorBtn')?.addEventListener('click', () => { 
+document.getElementById('clearExecutorBtn')?.addEventListener('click', function() { 
     document.getElementById('executorCode').value = ''; 
     document.getElementById('executorLog').innerHTML = '控制台已清空'; 
 });
 
-document.getElementById('doLoginBtn')?.addEventListener('click', async () => { 
-    let u = document.getElementById('loginUsername').value.trim(); 
-    let p = document.getElementById('loginPassword').value; 
+document.getElementById('doLoginBtn')?.addEventListener('click', async function() { 
+    var u = document.getElementById('loginUsername').value.trim(); 
+    var p = document.getElementById('loginPassword').value; 
     await login(u, p); 
 });
-document.getElementById('closeLoginBtn')?.addEventListener('click', () => document.getElementById('loginModal').classList.remove('active'));
-document.getElementById('toRegisterBtn')?.addEventListener('click', () => { 
+document.getElementById('closeLoginBtn')?.addEventListener('click', function() { document.getElementById('loginModal').classList.remove('active'); });
+document.getElementById('toRegisterBtn')?.addEventListener('click', function() { 
     document.getElementById('loginModal').classList.remove('active'); 
     document.getElementById('registerModal').classList.add('active'); 
 });
-document.getElementById('closeRegisterBtn')?.addEventListener('click', () => document.getElementById('registerModal').classList.remove('active'));
-document.getElementById('doRegisterBtn')?.addEventListener('click', async () => {
-    let u = document.getElementById('regUsername').value.trim();
-    let p = document.getElementById('regPassword').value.trim();
-    let c = document.getElementById('regCard').value.trim();
+document.getElementById('closeRegisterBtn')?.addEventListener('click', function() { document.getElementById('registerModal').classList.remove('active'); });
+document.getElementById('doRegisterBtn')?.addEventListener('click', async function() {
+    var u = document.getElementById('regUsername').value.trim();
+    var p = document.getElementById('regPassword').value.trim();
+    var c = document.getElementById('regCard').value.trim();
     if (!u || !p) { showToast("请填写用户名和密码", true); return; }
     if (await register(u, p, c)) {
         document.getElementById('registerModal').classList.remove('active');
@@ -1132,11 +1117,11 @@ document.getElementById('doRegisterBtn')?.addEventListener('click', async () => 
     }
 });
 
-document.getElementById('submitCardBtn')?.addEventListener('click', () => {
-    let card = document.getElementById('cardInput').value.trim();
+document.getElementById('submitCardBtn')?.addEventListener('click', function() {
+    var card = document.getElementById('cardInput').value.trim();
     verifyCard(card);
 });
-document.getElementById('closeCardBtn')?.addEventListener('click', () => {
+document.getElementById('closeCardBtn')?.addEventListener('click', function() {
     document.getElementById('cardModal').classList.remove('active');
 });
 
@@ -1150,12 +1135,12 @@ async function initialize() {
     await initGlobalMute();
     updateSidebarUI();
     await renderReviews();
-    renderGames();
+    if (currentUser) renderGames();
     if (currentUser) renderChats('general');
     startAutoRefresh();
-    setInterval(async () => {
-        const res = await fetch('/api/debug/ip').catch(() => ({}));
-        if (res.ok) document.getElementById('serverStatus').className = 'server-status success';
+    setInterval(async function() {
+        var res = await fetch('/api/debug/ip').catch(function() { return {}; });
+        if (res && res.ok) document.getElementById('serverStatus').className = 'server-status success';
         else document.getElementById('serverStatus').className = 'server-status error';
     }, 10000);
 }
