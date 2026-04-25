@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -7,6 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
+        /* 样式保持不变，与之前相同 */
         :root {
             --primary: #8b5cf6; --primary-light: #a78bfa; --primary-dark: #7c3aed;
             --primary-glow: rgba(139, 92, 246, 0.2); --secondary: #6366f1;
@@ -107,12 +108,12 @@
 <div id="sidebar" class="sidebar">
     <div class="sidebar-link active-side" data-page="reviews"><i class="fas fa-star"></i> 评价</div>
     <div class="sidebar-link" data-page="features"><i class="fas fa-gem"></i> 功能</div>
-    <div class="sidebar-link" data-page="games" id="gamesNav"><i class="fas fa-gamepad"></i> 游戏</div>
+    <div class="sidebar-link" data-page="games"><i class="fas fa-gamepad"></i> 游戏</div>
     <div class="sidebar-link" data-page="chat"><i class="fas fa-comments"></i> 聊天</div>
     <div class="sidebar-link" data-page="scripts"><i class="fas fa-code"></i> 脚本</div>
-    <div class="sidebar-link" data-page="executor" id="executorNav"><i class="fas fa-terminal"></i> 执行器</div>
-    <div class="sidebar-link" data-page="whitelist" id="whitelistNav"><i class="fas fa-list-check"></i> 白名单</div>
-    <div class="sidebar-link" data-page="admin" id="adminNav"><i class="fas fa-shield-alt"></i> 管理面板</div>
+    <div class="sidebar-link" data-page="executor"><i class="fas fa-terminal"></i> 执行器</div>
+    <div class="sidebar-link" data-page="whitelist"><i class="fas fa-list-check"></i> 白名单</div>
+    <div class="sidebar-link" data-page="admin"><i class="fas fa-shield-alt"></i> 管理面板</div>
     <div class="sidebar-footer"><button id="sidebarUserBtn" class="btn btn-secondary" style="width:100%;">登录/注册</button></div>
 </div>
 
@@ -297,9 +298,13 @@ function getBeautyBadgeHtml(userId, isBeauty) {
     return "";
 }
 
-// 权限检查
+// ==================== 权限检查（不隐藏菜单，只在点击时检查） ====================
 function checkGameAccess() {
-    if (!currentUser) { showToast("请先登录", true); return false; }
+    if (!currentUser) { 
+        showToast("请先登录", true); 
+        document.getElementById('loginModal').classList.add('active');
+        return false; 
+    }
     if (!hasValidCard && currentRole !== 'owner') { 
         showToast("需要有效卡密才能访问游戏库", true);
         document.getElementById('cardModal').classList.add('active');
@@ -309,7 +314,11 @@ function checkGameAccess() {
 }
 
 function checkExecutorAccess() {
-    if (!currentUser) { showToast("请先登录", true); return false; }
+    if (!currentUser) { 
+        showToast("请先登录", true); 
+        document.getElementById('loginModal').classList.add('active');
+        return false; 
+    }
     if (!hasValidCard && currentRole !== 'owner') { 
         showToast("需要有效卡密才能使用执行器", true);
         document.getElementById('cardModal').classList.add('active');
@@ -318,19 +327,38 @@ function checkExecutorAccess() {
     return true;
 }
 
-function checkWhitelistAccess() { return currentRole === 'owner'; }
-function checkAdminAccess() { return currentRole === 'owner'; }
+function checkWhitelistAccess() { 
+    if (currentRole !== 'owner') {
+        showToast("只有管理员可以访问白名单管理", true);
+        return false;
+    }
+    return true;
+}
 
-function updateSidebarVisibility() {
-    const gamesNav = document.getElementById('gamesNav');
-    const executorNav = document.getElementById('executorNav');
-    const whitelistNav = document.getElementById('whitelistNav');
-    const adminNav = document.getElementById('adminNav');
-    
-    if (gamesNav) gamesNav.style.display = (!hasValidCard && currentRole !== 'owner') ? 'none' : 'flex';
-    if (executorNav) executorNav.style.display = (!hasValidCard && currentRole !== 'owner') ? 'none' : 'flex';
-    if (whitelistNav) whitelistNav.style.display = checkWhitelistAccess() ? 'flex' : 'none';
-    if (adminNav) adminNav.style.display = checkAdminAccess() ? 'flex' : 'none';
+function checkAdminAccess() { 
+    if (currentRole !== 'owner') {
+        showToast("只有管理员可以访问管理面板", true);
+        return false;
+    }
+    return true;
+}
+
+function checkChatAccess() {
+    if (!currentUser) {
+        showToast("请先登录使用聊天功能", true);
+        document.getElementById('loginModal').classList.add('active');
+        return false;
+    }
+    return true;
+}
+
+function checkScriptsAccess() {
+    if (!currentUser) {
+        showToast("请先登录使用脚本功能", true);
+        document.getElementById('loginModal').classList.add('active');
+        return false;
+    }
+    return true;
 }
 
 // 卡密验证
@@ -340,9 +368,9 @@ function verifyCard(cardKey) {
         localStorage.setItem('lovess_card_valid', 'true');
         showToast("卡密验证成功！", false);
         document.getElementById('cardModal').classList.remove('active');
+        
         if (document.getElementById('gamesPage').classList.contains('active-page')) renderGames();
         if (document.getElementById('executorPage').classList.contains('active-page')) refreshExecutorAccess();
-        updateSidebarVisibility();
         return true;
     } else {
         showToast("卡密无效", true);
@@ -353,38 +381,53 @@ function verifyCard(cardKey) {
 function loadCachedCard() {
     if (localStorage.getItem('lovess_card_valid') === 'true') {
         hasValidCard = true;
-        updateSidebarVisibility();
     }
 }
 
 function refreshExecutorAccess() {
-    if (checkExecutorAccess()) {
+    if (currentUser && (hasValidCard || currentRole === 'owner')) {
         document.getElementById('executorLog').innerHTML = '执行器已解锁，可以执行脚本';
+    } else {
+        document.getElementById('executorLog').innerHTML = '请先登录并验证卡密后使用执行器';
     }
 }
 
-// ==================== 硬件指纹初始化 ====================
+// ==================== 硬件指纹初始化（未注册也上报！） ====================
 async function initHardwareFingerprint() {
     try {
         const fp = new HardwareFingerprint();
         const features = await fp.generate();
         
+        // 关键：无论是否登录，都上报硬件指纹到后端
+        // 这样未注册用户也会被记录 IP + 硬件指纹
         const res = await fetch('/api/fingerprint/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fingerprint: features, username: currentUser || null })
+            body: JSON.stringify({ 
+                fingerprint: features, 
+                username: currentUser || null  // 未登录时传 null
+            })
         });
         
         const data = await res.json();
+        
+        // 如果硬件已被封禁，直接锁死页面
         if (data.banned) {
             showToast(data.error || '此设备已被封禁', true);
-            document.body.innerHTML = `<div style="text-align:center;padding:100px;color:#ef4444;"><i class="fas fa-shield-alt" style="font-size:64px;"></i><h1>设备已被封禁</h1><p>${data.error || '更换浏览器或VPN无效'}</p></div>`;
+            document.body.innerHTML = `<div style="text-align:center;padding:100px;color:#ef4444;"><i class="fas fa-shield-alt" style="font-size:64px;"></i><h1>设备已被封禁</h1><p>${data.error || '更换浏览器或VPN无效'}</p><p style="font-size:12px;margin-top:20px;">硬件指纹: ${data.hardwareId ? data.hardwareId.substring(0, 32) + '...' : '已记录'}</p></div>`;
             return false;
         }
         
         if (data.hardwareId) {
             hardwareId = data.hardwareId;
+            console.log('硬件指纹已注册:', hardwareId.substring(0, 32) + '...');
         }
+        
+        // 可选：显示硬件ID到控制台供调试
+        if (data.hardwareId) {
+            console.log('设备指纹:', data.hardwareId);
+        }
+        
         return true;
     } catch(e) {
         console.error('指纹初始化失败:', e);
@@ -406,7 +449,15 @@ async function renderGames() {
 }
 
 async function renderReviews() {
-    if (!currentUser) return;
+    if (!currentUser) {
+        try {
+            const res = await fetch('/api/reviews');
+            const reviews = await res.json();
+            document.getElementById('reviewsList').innerHTML = reviews.length === 0 ? '<div>暂无评价</div>' : reviews.map(r => `<div class="review-item"><div><strong>${escapeHtml(r.name)}</strong> ${'★'.repeat(r.rating)}<p>${escapeHtml(r.text)}</p></div></div>`).join('');
+            document.getElementById('statReviewCount').innerText = reviews.length;
+        } catch(e) { console.error(e); }
+        return;
+    }
     try {
         const res = await fetch('/api/reviews');
         const reviews = await res.json();
@@ -437,22 +488,24 @@ window.deleteReview = async (id) => {
 };
 
 async function renderChats(room) {
-    if (!currentUser) return;
+    if (!checkChatAccess()) return;
     try {
         const res = await fetch(`/api/chats/${room}`);
         let msgs = await res.json();
         let box = document.getElementById('chatMsgs');
-        box.innerHTML = msgs.map(m => {
-            const isOwn = m.user === currentUser;
-            const beautyBadge = getBeautyBadgeHtml(m.userId, m.isBeauty);
-            return `<div class="msg-bubble ${isOwn ? 'msg-own' : ''}"><strong>${escapeHtml(m.user)}</strong>${beautyBadge}<span style="font-size:0.7rem; margin-left:8px;">${m.time}</span><br>${escapeHtml(m.text)}</div>`;
-        }).join('');
-        box.scrollTop = box.scrollHeight;
+        if (box) {
+            box.innerHTML = msgs.map(m => {
+                const isOwn = m.user === currentUser;
+                const beautyBadge = getBeautyBadgeHtml(m.userId, m.isBeauty);
+                return `<div class="msg-bubble ${isOwn ? 'msg-own' : ''}"><strong>${escapeHtml(m.user)}</strong>${beautyBadge}<span style="font-size:0.7rem; margin-left:8px;">${m.time}</span><br>${escapeHtml(m.text)}</div>`;
+            }).join('');
+            box.scrollTop = box.scrollHeight;
+        }
     } catch(e) { console.error(e); }
 }
 
 async function sendChat() {
-    if (!currentUser) { showToast("请先登录", true); return; }
+    if (!checkChatAccess()) return;
     let inp = document.getElementById('chatInput');
     if (!inp.value.trim()) return;
     await fetch('/api/chat', {
@@ -465,7 +518,7 @@ async function sendChat() {
 }
 
 async function renderScripts() {
-    if (!currentUser) return;
+    if (!checkScriptsAccess()) return;
     try {
         const res = await fetch('/api/scripts');
         let scripts = await res.json();
@@ -490,10 +543,7 @@ async function uploadScript() {
 }
 
 async function renderWhitelistPage() {
-    if (!checkWhitelistAccess()) { 
-        document.getElementById('whitelistContent').innerHTML = '<div class="access-denied"><i class="fas fa-lock"></i><h2>无权访问</h2><p>只有管理员可以访问白名单管理</p></div>'; 
-        return; 
-    }
+    if (!checkWhitelistAccess()) return;
     try {
         const res = await fetch('/api/whitelist');
         let whitelist = await res.json();
@@ -512,23 +562,22 @@ async function addToWhitelist() {
 
 // ==================== 管理面板 ====================
 async function renderAdminPanel() {
-    if (!checkAdminAccess()) { 
-        document.getElementById('adminContent').innerHTML = '<div class="access-denied"><i class="fas fa-lock"></i><h2>无权访问</h2><p>只有管理员可以访问</p></div>'; 
-        return; 
-    }
+    if (!checkAdminAccess()) return;
     
     try {
-        const [usersRes, scriptsRes, reviewsRes, bannedRes] = await Promise.all([
+        const [usersRes, scriptsRes, reviewsRes, bannedRes, visitorsRes] = await Promise.all([
             fetch('/api/admin/users'),
             fetch('/api/admin/pending'),
             fetch('/api/reviews'),
-            fetch('/api/admin/banned')
+            fetch('/api/admin/banned'),
+            fetch('/api/admin/visitors')
         ]);
         
         let users = await usersRes.json();
         let pending = await scriptsRes.json();
         let reviews = await reviewsRes.json();
         let bannedData = await bannedRes.json();
+        let visitors = await visitorsRes.json();
         
         const bannedHardware = new Set(bannedData.bannedHardware || []);
         
@@ -536,6 +585,9 @@ async function renderAdminPanel() {
         container.innerHTML = `
             <h3><i class="fas fa-chart-line"></i> 系统统计</h3>
             <p>注册用户: ${users.length} | 待审核脚本: ${pending.length} | 评价: ${reviews.length} | 已封禁硬件: ${bannedHardware.size}</p>
+            
+            <h3 style="margin-top:20px;"><i class="fas fa-user-secret"></i> 未注册访客追踪 (IP+硬件指纹)</h3>
+            <div id="visitorsList" style="max-height:300px;overflow-y:auto;margin-bottom:20px;"></div>
             
             <h3 style="margin-top:20px;"><i class="fas fa-microchip"></i> 硬件指纹管理</h3>
             <div id="hardwareList" style="max-height:300px;overflow-y:auto;margin-bottom:20px;"></div>
@@ -546,6 +598,27 @@ async function renderAdminPanel() {
             <h3 style="margin-top:20px;"><i class="fas fa-clock"></i> 待审核脚本</h3>
             <div id="pendingScripts"></div>
         `;
+        
+        // 未注册访客列表
+        let visitorsHtml = '<div style="border:1px solid var(--border);border-radius:12px;">';
+        if (visitors.length === 0) {
+            visitorsHtml += '<div style="padding:20px;text-align:center;color:var(--text-muted);">暂无访客记录</div>';
+        } else {
+            for (const v of visitors) {
+                visitorsHtml += `<div class="visitor-item">
+                    <div><strong><i class="fas fa-globe"></i> IP:</strong> ${escapeHtml(v.ip)}</div>
+                    <div><strong><i class="fas fa-fingerprint"></i> 硬件ID:</strong> <span class="hwid-badge">${escapeHtml(v.hardwareId?.substring(0, 48) || '未知')}...</span></div>
+                    <div><strong><i class="fas fa-desktop"></i> 首次访问:</strong> ${new Date(v.firstSeen).toLocaleString()}</div>
+                    <div><strong><i class="fas fa-chart-simple"></i> 访问次数:</strong> ${v.visitCount || 1}</div>
+                    <div><strong><i class="fas fa-browser"></i> WebGL:</strong> ${escapeHtml(v.webgl?.substring(0, 50) || '未知')}</div>
+                    <div style="margin-top:8px;">
+                        <button class="ban-btn" onclick="banVisitorHardware('${v.ip}', '${v.hardwareId}')">封禁IP+硬件</button>
+                    </div>
+                </div>`;
+            }
+        }
+        visitorsHtml += '</div>';
+        document.getElementById('visitorsList').innerHTML = visitorsHtml;
         
         // 硬件指纹列表
         const hardwareMap = new Map();
@@ -593,6 +666,14 @@ async function renderAdminPanel() {
 }
 
 // 管理函数
+window.banVisitorHardware = async (ip, hardwareId) => {
+    if (!confirm(`封禁访客 IP: ${ip} 及其硬件?`)) return;
+    if (hardwareId) await fetch('/api/admin/banHardware', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ hardwareId }) });
+    await fetch('/api/admin/banIP', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ip }) });
+    showToast("已封禁访客的IP和硬件", false);
+    renderAdminPanel();
+};
+
 window.banHardware = async (hardwareId) => {
     await fetch('/api/admin/banHardware', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ hardwareId }) });
     showToast("硬件已封禁", false);
@@ -652,17 +733,17 @@ async function login(username, password) {
             showToast(`欢迎回来，${username}`, false);
             document.getElementById('loginModal').classList.remove('active');
             
+            // 登录后重新上报一次指纹（关联用户名）
             await initHardwareFingerprint();
             
             await renderReviews();
-            await renderGames();
-            await renderChats(currentRoom);
-            await renderScripts();
+            if (document.getElementById('gamesPage').classList.contains('active-page') && (hasValidCard || currentRole === 'owner')) await renderGames();
+            if (document.getElementById('chatPage').classList.contains('active-page')) await renderChats(currentRoom);
+            if (document.getElementById('scriptsPage').classList.contains('active-page')) await renderScripts();
             if (currentRole === 'owner') {
-                await renderWhitelistPage();
-                await renderAdminPanel();
+                if (document.getElementById('whitelistPage').classList.contains('active-page')) await renderWhitelistPage();
+                if (document.getElementById('adminPage').classList.contains('active-page')) await renderAdminPanel();
             }
-            updateSidebarVisibility();
             return true;
         } else {
             showToast(data.error || "登录失败", true);
@@ -703,7 +784,11 @@ function logout() {
     localStorage.removeItem('lovess_card_valid');
     updateSidebarUI(); 
     showToast("已登出", false);
-    updateSidebarVisibility();
+    renderReviews();
+    document.getElementById('gamesContainer').innerHTML = '<div class="loading-spinner">请先登录并验证卡密...</div>';
+    document.getElementById('executorLog').innerHTML = '请先登录并验证卡密后使用执行器';
+    document.getElementById('whitelistContent').innerHTML = '仅管理员可见';
+    document.getElementById('adminContent').innerHTML = '仅管理员可见';
 }
 
 function updateSidebarUI() {
@@ -716,10 +801,19 @@ function updateSidebarUI() {
 
 // ==================== 页面切换 ====================
 function switchPage(pageId) {
-    if (pageId === 'games') { if (!checkGameAccess()) return; }
-    if (pageId === 'executor') { if (!checkExecutorAccess()) return; }
-    if (pageId === 'whitelist') { if (!checkWhitelistAccess()) { showToast("无权访问", true); return; } }
-    if (pageId === 'admin') { if (!checkAdminAccess()) { showToast("无权访问", true); return; } }
+    if (pageId === 'games') {
+        if (!checkGameAccess()) return;
+    } else if (pageId === 'executor') {
+        if (!checkExecutorAccess()) return;
+    } else if (pageId === 'whitelist') {
+        if (!checkWhitelistAccess()) return;
+    } else if (pageId === 'admin') {
+        if (!checkAdminAccess()) return;
+    } else if (pageId === 'chat') {
+        if (!checkChatAccess()) return;
+    } else if (pageId === 'scripts') {
+        if (!checkScriptsAccess()) return;
+    }
     
     document.querySelectorAll('.page-content').forEach(p => p.classList.remove('active-page'));
     let target = document.getElementById(pageId + 'Page');
@@ -733,13 +827,12 @@ function switchPage(pageId) {
     
     if (pageId === 'reviews') renderReviews();
     if (pageId === 'games') renderGames();
-    if (pageId === 'chat') renderChats(currentRoom);
-    if (pageId === 'scripts') renderScripts();
-    if (pageId === 'whitelist') renderWhitelistPage();
-    if (pageId === 'admin') renderAdminPanel();
+    if (pageId === 'chat' && currentUser) renderChats(currentRoom);
+    if (pageId === 'scripts' && currentUser) renderScripts();
+    if (pageId === 'whitelist' && currentRole === 'owner') renderWhitelistPage();
+    if (pageId === 'admin' && currentRole === 'owner') renderAdminPanel();
 }
 
-// 自动刷新
 function startAutoRefresh() {
     if (autoRefreshTimer) clearInterval(autoRefreshTimer);
     autoRefreshTimer = setInterval(async () => {
@@ -764,13 +857,14 @@ document.querySelectorAll('#chatTabs .tab').forEach(t => {
         document.querySelectorAll('#chatTabs .tab').forEach(tt => tt.classList.remove('active'));
         t.classList.add('active');
         currentRoom = t.dataset.room;
-        renderChats(currentRoom);
+        if (currentUser) renderChats(currentRoom);
     });
 });
 document.getElementById('refreshGamesBtn')?.addEventListener('click', renderGames);
 document.getElementById('uploadScriptBtn')?.addEventListener('click', uploadScript);
 document.getElementById('submitReviewBtn')?.addEventListener('click', submitReview);
 document.getElementById('executeBtn')?.addEventListener('click', () => { 
+    if (!checkExecutorAccess()) return;
     let code = document.getElementById('executorCode').value; 
     document.getElementById('executorLog').innerHTML += `\n> 执行: ${code.substring(0,60)}...`; 
     showToast("已执行", false); 
@@ -813,11 +907,12 @@ document.getElementById('closeCardBtn')?.addEventListener('click', () => {
 // ==================== 初始化 ====================
 async function initialize() {
     loadCachedCard();
+    // 重要：先初始化硬件指纹，无论是否登录都会上报
     await initHardwareFingerprint();
     updateSidebarUI();
-    updateSidebarVisibility();
-    await renderGames();
-    renderChats('general');
+    await renderReviews();
+    renderGames();
+    if (currentUser) renderChats('general');
     startAutoRefresh();
     setInterval(async () => {
         const res = await fetch('/api/debug/ip').catch(() => ({}));
