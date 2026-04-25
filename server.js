@@ -14,7 +14,6 @@ function getRealIP(req) {
     return req.ip || req.connection?.remoteAddress || 'unknown';
 }
 
-// ==================== 硬件指纹封禁系统 ====================
 let bannedHardware = new Set();
 let bannedIPs = new Set();
 let bannedUsers = new Set();
@@ -48,84 +47,72 @@ function loadBannedData() {
             bannedUsers = new Set(data.bannedUsers || []);
             globalMuteEnabled = data.globalMuteEnabled || false;
             console.log(`封禁数据: ${bannedHardware.size} 硬件, ${bannedIPs.size} IP, ${bannedUsers.size} 用户`);
-        } else {
-            // 初始化空文件
-            saveBannedData();
         }
-    } catch(e) { console.error('加载封禁数据失败:', e); }
+    } catch(e) { console.error(e); }
 }
 
 function saveBannedData() {
     try {
-        const filePath = path.join(__dirname, 'banned.json');
-        fs.writeFileSync(filePath, JSON.stringify({
+        fs.writeFileSync(path.join(__dirname, 'banned.json'), JSON.stringify({
             bannedHardware: [...bannedHardware],
             bannedIPs: [...bannedIPs],
             bannedUsers: [...bannedUsers],
             globalMuteEnabled: globalMuteEnabled
         }, null, 2));
-    } catch(e) { console.error('保存封禁数据失败:', e); }
+    } catch(e) { console.error(e); }
 }
 
-// ==================== 封禁中间件（返回404纯文本，看不到任何代码） ====================
+function loadVisitorsData() {
+    try {
+        const filePath = path.join(__dirname, 'visitors.json');
+        if (fs.existsSync(filePath)) {
+            const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+            visitors.clear();
+            for (const v of data) {
+                visitors.set(v.ip, v);
+            }
+            console.log(`加载访客数据: ${visitors.size} 条记录`);
+        }
+    } catch(e) { console.error('加载访客数据失败:', e); }
+}
+
+function saveVisitorsData() {
+    try {
+        const filePath = path.join(__dirname, 'visitors.json');
+        const data = [];
+        for (const [ip, v] of visitors) {
+            data.push(v);
+        }
+        fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+        console.log(`保存访客数据: ${data.length} 条记录`);
+    } catch(e) { console.error('保存访客数据失败:', e); }
+}
+
 app.use((req, res, next) => {
     const ip = getRealIP(req);
     const hardwareId = req.headers['x-hardware-id'];
     
-    // 跳过API路径
     if (req.path.startsWith('/api/')) {
         return next();
     }
     
-    // 跳过静态文件
     if (req.path.match(/\.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf)$/)) {
         return next();
     }
     
-    // 检查IP是否被封禁
     if (bannedIPs.has(ip)) {
-        console.log(`🚫 404伪装: IP ${ip} 被封禁`);
+        console.log(`404伪装: IP ${ip} 被封禁`);
         return res.status(404).type('text/plain').send('404 Not Found');
     }
     
-    // 检查硬件是否被封禁
     if (hardwareId && bannedHardware.has(hardwareId)) {
-        console.log(`🚫 404伪装: 硬件 ${hardwareId.substring(0, 16)}... 被封禁`);
+        console.log(`404伪装: 硬件 ${hardwareId.substring(0, 16)}... 被封禁`);
         return res.status(404).type('text/plain').send('404 Not Found');
     }
     
     next();
 });
 
-// 访客追踪中间件
-app.use((req, res, next) => {
-    const ip = getRealIP(req);
-    const hardwareId = req.headers['x-hardware-id'] || req.body?.hardwareId;
-    
-    const username = req.body?.username || req.headers['x-username'];
-    if (hardwareId && (!username || username === 'unknown' || username === 'null')) {
-        if (!visitors.has(ip)) {
-            visitors.set(ip, {
-                ip: ip,
-                hardwareId: hardwareId,
-                firstSeen: new Date().toISOString(),
-                lastSeen: new Date().toISOString(),
-                visitCount: 1,
-                webgl: req.body?.fingerprint?.webgl || 'unknown'
-            });
-            console.log(`新访客: IP ${ip}, 硬件 ${hardwareId.substring(0, 16)}...`);
-        } else {
-            const v = visitors.get(ip);
-            v.visitCount++;
-            v.lastSeen = new Date().toISOString();
-            v.hardwareId = hardwareId;
-        }
-    }
-    
-    next();
-});
-
-// ==================== 指纹注册接口 ====================
 app.post('/api/fingerprint/register', (req, res) => {
     const { fingerprint, username } = req.body;
     const ip = getRealIP(req);
@@ -135,13 +122,38 @@ app.post('/api/fingerprint/register', (req, res) => {
     }
     
     const hardwareId = generateHardwareId(fingerprint);
-    console.log(`指纹注册: ${hardwareId.substring(0, 16)}... IP: ${ip} 用户: ${username || '未登录'}`);
+    const isLoggedIn = username && username !== 'unknown' && username !== 'null' && username !== 'undefined';
+    const displayUser = isLoggedIn ? username : '未登录';
+    
+    console.log(`指纹注册: ${hardwareId.substring(0, 16)}... IP: ${ip} 用户: ${displayUser}`);
+    
+    if (!visitors.has(ip)) {
+        visitors.set(ip, {
+            ip: ip,
+            hardwareId: hardwareId,
+            firstSeen: new Date().toISOString(),
+            lastSeen: new Date().toISOString(),
+            visitCount: 1,
+            webgl: fingerprint.webgl || 'unknown',
+            username: isLoggedIn ? username : null
+        });
+        console.log(`新访客记录: IP ${ip}, 硬件 ${hardwareId.substring(0, 16)}...`);
+        saveVisitorsData();
+    } else {
+        const existing = visitors.get(ip);
+        existing.visitCount++;
+        existing.lastSeen = new Date().toISOString();
+        existing.hardwareId = hardwareId;
+        if (isLoggedIn) existing.username = username;
+        console.log(`更新访客: IP ${ip}, 访问次数 ${existing.visitCount}`);
+        saveVisitorsData();
+    }
     
     if (bannedHardware.has(hardwareId)) {
         return res.json({ success: false, banned: true, error: '此设备已被封禁' });
     }
     
-    if (username && username !== 'unknown' && username !== 'null' && username !== 'undefined') {
+    if (isLoggedIn) {
         if (hardwareToUser.has(hardwareId)) {
             const oldUser = hardwareToUser.get(hardwareId);
             if (oldUser !== username) {
@@ -159,13 +171,16 @@ app.post('/api/fingerprint/register', (req, res) => {
     res.json({ success: true, hardwareId: hardwareId });
 });
 
-// ==================== 管理员 API ====================
 app.get('/api/admin/banned', (req, res) => {
     res.json({ bannedHardware: [...bannedHardware], bannedIPs: [...bannedIPs], bannedUsers: [...bannedUsers] });
 });
 
 app.get('/api/admin/visitors', (req, res) => {
-    res.json([...visitors.values()]);
+    const list = [];
+    for (const [ip, v] of visitors) {
+        list.push(v);
+    }
+    res.json(list);
 });
 
 app.post('/api/admin/banHardware', (req, res) => {
@@ -293,7 +308,6 @@ app.post('/api/admin/toggleGlobalMute', (req, res) => {
     res.json({ enabled: globalMuteEnabled });
 });
 
-// ==================== GitHub 存储配置 ====================
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const GITHUB_USER = process.env.GITHUB_USER || "liushumei11110-boop";
 const REPO_NAME = process.env.REPO_NAME || "lovess";
@@ -326,7 +340,6 @@ async function writeJSON(file, content, msg) {
     } catch(e) { return false; }
 }
 
-// ==================== 业务 API ====================
 app.get('/api/debug/ip', (req, res) => {
     res.json({ realIP: getRealIP(req) });
 });
@@ -456,12 +469,14 @@ app.get('/api/user/:username', async (req, res) => {
     }
 });
 
-// ==================== 启动服务器 ====================
 loadBannedData();
+loadVisitorsData();
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`LOVESS 后端已启动！`);
     console.log(`监听端口: ${PORT}`);
     console.log(`已封禁 ${bannedHardware.size} 个硬件, ${bannedIPs.size} 个IP, ${bannedUsers.size} 个用户`);
     console.log(`全局禁言: ${globalMuteEnabled ? '开启' : '关闭'}`);
+    console.log(`访客记录: ${visitors.size} 条`);
 });
