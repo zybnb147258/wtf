@@ -19,7 +19,6 @@ let bannedIPs = new Set();
 let bannedUsers = new Set();
 let hardwareToUser = new Map();
 let visitors = new Map();
-let globalMuteEnabled = false;
 
 function generateHardwareId(fingerprint) {
     const stableFeatures = {
@@ -45,7 +44,6 @@ function loadBannedData() {
             bannedHardware = new Set(data.bannedHardware || []);
             bannedIPs = new Set(data.bannedIPs || []);
             bannedUsers = new Set(data.bannedUsers || []);
-            globalMuteEnabled = data.globalMuteEnabled || false;
             console.log(`封禁数据: ${bannedHardware.size} 硬件, ${bannedIPs.size} IP, ${bannedUsers.size} 用户`);
         }
     } catch(e) { console.error(e); }
@@ -56,8 +54,7 @@ function saveBannedData() {
         fs.writeFileSync(path.join(__dirname, 'banned.json'), JSON.stringify({
             bannedHardware: [...bannedHardware],
             bannedIPs: [...bannedIPs],
-            bannedUsers: [...bannedUsers],
-            globalMuteEnabled: globalMuteEnabled
+            bannedUsers: [...bannedUsers]
         }, null, 2));
     } catch(e) { console.error(e); }
 }
@@ -84,7 +81,6 @@ function saveVisitorsData() {
             data.push(v);
         }
         fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-        console.log(`保存访客数据: ${data.length} 条记录`);
     } catch(e) { console.error('保存访客数据失败:', e); }
 }
 
@@ -297,49 +293,107 @@ app.get('/api/admin/chats', async (req, res) => {
     res.json(chats);
 });
 
-app.get('/api/admin/globalMuteStatus', (req, res) => {
-    res.json({ enabled: globalMuteEnabled });
+// ==================== 全局禁言 API（直接读写 GitHub whitelist.json） ====================
+app.get('/api/admin/globalMuteStatus', async (req, res) => {
+    try {
+        const status = await readGitHubFile('whitelist.json');
+        let isMuted = false;
+        if (status === 'B') {
+            isMuted = true;
+        } else if (typeof status === 'object' && status !== null && status.globalMute === true) {
+            isMuted = true;
+        }
+        console.log(`[GitHub] 全局禁言状态查询: ${isMuted ? '开启(B)' : '关闭(A)'}`);
+        res.json({ enabled: isMuted });
+    } catch(e) {
+        console.error('读取全局禁言状态失败:', e);
+        res.json({ enabled: false });
+    }
 });
 
-app.post('/api/admin/toggleGlobalMute', (req, res) => {
-    globalMuteEnabled = !globalMuteEnabled;
-    saveBannedData();
-    console.log(`全局禁言: ${globalMuteEnabled ? '开启' : '关闭'}`);
-    res.json({ enabled: globalMuteEnabled });
+app.post('/api/admin/toggleGlobalMute', async (req, res) => {
+    try {
+        let current = await readGitHubFile('whitelist.json');
+        let newStatus;
+        
+        if (current === 'A' || current === undefined || current === null) {
+            newStatus = 'B';
+        } else if (current === 'B') {
+            newStatus = 'A';
+        } else if (typeof current === 'object') {
+            newStatus = current.globalMute === true ? 'A' : 'B';
+        } else {
+            newStatus = 'A';
+        }
+        
+        await writeGitHubFile('whitelist.json', newStatus, `切换全局禁言: ${newStatus === 'B' ? '开启' : '关闭'}`);
+        console.log(`[GitHub] 全局禁言已切换: ${newStatus === 'B' ? '开启(B)' : '关闭(A)'}`);
+        res.json({ enabled: newStatus === 'B' });
+    } catch(e) {
+        console.error('切换全局禁言失败:', e);
+        res.status(500).json({ error: '操作失败: ' + e.message });
+    }
 });
 
+// ==================== GitHub 读写函数 ====================
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const GITHUB_USER = process.env.GITHUB_USER || "liushumei11110-boop";
 const REPO_NAME = process.env.REPO_NAME || "lovess";
 const OWNER_PASSWORD = process.env.OWNER_PASSWORD || "khyzybnb666147";
 
-async function readJSON(file) {
+async function readGitHubFile(file) {
     try {
         const url = `https://api.github.com/repos/${GITHUB_USER}/${REPO_NAME}/contents/${file}`;
         const res = await fetch(url, { headers: { 'Authorization': `token ${GITHUB_TOKEN}` } });
-        if (!res.ok) return {};
+        if (!res.ok) {
+            if (file === 'whitelist.json') return 'A';
+            return {};
+        }
         const data = await res.json();
         const content = Buffer.from(data.content, 'base64').toString('utf8');
-        return JSON.parse(content);
-    } catch(e) { return {}; }
+        try {
+            return JSON.parse(content);
+        } catch(e) {
+            return content;
+        }
+    } catch(e) { 
+        if (file === 'whitelist.json') return 'A';
+        return {}; 
+    }
 }
 
-async function writeJSON(file, content, msg) {
+async function writeGitHubFile(file, content, msg) {
     try {
         const url = `https://api.github.com/repos/${GITHUB_USER}/${REPO_NAME}/contents/${file}`;
         let sha = null;
         const getRes = await fetch(url, { headers: { 'Authorization': `token ${GITHUB_TOKEN}` } });
         if (getRes.ok) sha = (await getRes.json()).sha;
-        const base64 = Buffer.from(JSON.stringify(content, null, 2)).toString('base64');
-        await fetch(url, {
+        const stringContent = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
+        const base64 = Buffer.from(stringContent, 'utf8').toString('base64');
+        const res = await fetch(url, {
             method: 'PUT',
             headers: { 'Authorization': `token ${GITHUB_TOKEN}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({ message: msg, content: base64, sha })
         });
+        if (!res.ok) {
+            throw new Error(`GitHub API 返回 ${res.status}`);
+        }
         return true;
-    } catch(e) { return false; }
+    } catch(e) { 
+        console.error(`写入 GitHub ${file} 失败:`, e);
+        throw e;
+    }
 }
 
+async function readJSON(file) {
+    return await readGitHubFile(file);
+}
+
+async function writeJSON(file, content, msg) {
+    return await writeGitHubFile(file, content, msg);
+}
+
+// ==================== 业务 API ====================
 app.get('/api/debug/ip', (req, res) => {
     res.json({ realIP: getRealIP(req) });
 });
@@ -401,12 +455,20 @@ app.post('/api/script/upload', async (req, res) => {
 
 app.get('/api/whitelist', async (req, res) => {
     const whitelist = await readJSON('whitelist.json');
-    res.json(whitelist || []);
+    if (typeof whitelist === 'string') {
+        res.json([]);
+    } else {
+        res.json(whitelist || []);
+    }
 });
 
 app.post('/api/whitelist/add', async (req, res) => {
+    let whitelist = await readJSON('whitelist.json');
+    if (typeof whitelist === 'string') {
+        whitelist = [];
+    }
+    if (!Array.isArray(whitelist)) whitelist = [];
     const { name } = req.body;
-    let whitelist = await readJSON('whitelist.json') || [];
     if (!whitelist.includes(name)) whitelist.push(name);
     await writeJSON('whitelist.json', whitelist, '添加白名单');
     res.json({ success: true });
@@ -477,6 +539,5 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`LOVESS 后端已启动！`);
     console.log(`监听端口: ${PORT}`);
     console.log(`已封禁 ${bannedHardware.size} 个硬件, ${bannedIPs.size} 个IP, ${bannedUsers.size} 个用户`);
-    console.log(`全局禁言: ${globalMuteEnabled ? '开启' : '关闭'}`);
     console.log(`访客记录: ${visitors.size} 条`);
 });
