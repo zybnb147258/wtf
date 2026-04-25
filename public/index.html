@@ -83,15 +83,177 @@
         .ban-btn { padding: 4px 12px; font-size: 0.8rem; cursor: pointer; border-radius: 6px; border: none; color: white; background: var(--danger); }
         .ban-btn-success { background: var(--success); }
         .avatar-img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; margin-right: 12px; cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; background: var(--surface-alt); }
+        .avatar-img:hover { transform: scale(1.1); border: 2px solid var(--primary); }
         .profile-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); backdrop-filter: blur(20px); z-index: 5000; align-items: center; justify-content: center; }
         .profile-modal.active { display: flex; }
         .profile-container { background: var(--surface); border-radius: var(--radius-xl); padding: 40px; width: 400px; max-width: 90%; text-align: center; }
+        .profile-avatar { width: 120px; height: 120px; border-radius: 50%; object-fit: cover; margin-bottom: 20px; border: 3px solid var(--primary); background: var(--surface-alt); display: flex; align-items: center; justify-content: center; font-size: 48px; }
+        .close-profile { margin-top: 20px; }
         .review-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid var(--border); }
         .review-delete { background: var(--danger); border: none; color: white; padding: 4px 12px; border-radius: 8px; cursor: pointer; }
-        .beauty-badge-b { position: relative; display: inline-flex; align-items: center; height: 32px; padding: 0 8px; border-radius: 16px; background: linear-gradient(135deg, #ff3366 0%, #ff0033 20%, #cc0000 50%, #990000 100%); margin-left: 8px; }
-        .beauty-text-b { color: #fff; font-size: 18px; font-weight: 900; font-style: italic; }
-        .beauty-badge-a { display: inline-flex; align-items: center; margin-left: 8px; background: linear-gradient(135deg, #fbbf24, #f59e0b); padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: bold; color: #fff; }
-        .server-status { position: fixed; top: 80px; right: 20px; background: rgba(0,0,0,0.8); padding: 8px 16px; border-radius: 20px; font-size: 12px; z-index: 100; backdrop-filter: blur(10px); border-left: 3px solid #10b981; }
+        
+        .beauty-badge-b {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            height: 32px;
+            padding: 0 8px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, #ff3366 0%, #ff0033 20%, #cc0000 50%, #990000 100%);
+            box-shadow: 0 0 0 1px rgba(255, 0, 51, 0.3), 0 4px 20px rgba(255, 0, 51, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2), inset 0 -1px 0 rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            transform: skewX(-5deg);
+            transition: transform 0.2s ease;
+            margin-left: 8px;
+        }
+        .beauty-badge-b:hover {
+            transform: skewX(-5deg) scale(1.02);
+            box-shadow: 0 0 0 1px rgba(255, 51, 102, 0.5), 0 6px 24px rgba(255, 0, 51, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        }
+        .beauty-text-b {
+            color: #fff;
+            font-size: 18px;
+            font-weight: 900;
+            font-style: italic;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 0 8px rgba(255, 255, 255, 0.4);
+            letter-spacing: 1px;
+            position: relative;
+            z-index: 2;
+            transform: skewX(5deg);
+        }
+        .beauty-text-b::before {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            color: transparent;
+            background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.8) 50%, transparent 100%);
+            background-size: 200% 100%;
+            background-clip: text;
+            -webkit-background-clip: text;
+            animation: text-shine 3s infinite linear;
+            z-index: 3;
+            pointer-events: none;
+        }
+        .number-box-b {
+            position: relative;
+            padding: 2px 8px;
+            background: linear-gradient(90deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+            border-radius: 8px;
+            margin: 0 4px;
+            overflow: hidden;
+            transform: skewX(5deg);
+        }
+        .number-box-b::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 60%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.4) 50%, transparent 100%);
+            animation: number-shine 4s infinite linear;
+            pointer-events: none;
+        }
+        .beauty-number-b {
+            color: #fff;
+            font-size: 16px;
+            font-weight: 700;
+            font-family: "Arial", "Helvetica Neue", sans-serif;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 0 4px rgba(255, 255, 255, 0.3);
+            transform: skewX(5deg);
+            letter-spacing: 0.5px;
+        }
+        .beauty-badge-b::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 20%, rgba(255, 255, 255, 0.08) 100%);
+            border-radius: 16px;
+            z-index: 1;
+            pointer-events: none;
+        }
+        .beauty-badge-b::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 40%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.7) 20%, rgba(255, 255, 255, 0.9) 50%, rgba(255, 255, 255, 0.7) 80%, transparent 100%);
+            animation: light-sweep 2.5s infinite ease-in-out;
+            z-index: 1;
+            pointer-events: none;
+        }
+        .stars-container-b {
+            position: absolute;
+            top: -10px;
+            left: 0;
+            width: 100%;
+            height: 20px;
+            overflow: visible;
+            pointer-events: none;
+            z-index: 3;
+        }
+        .star-b {
+            position: absolute;
+            color: #fff;
+            font-size: 10px;
+            opacity: 0;
+            filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.9));
+            animation: star-fly linear forwards;
+            pointer-events: none;
+        }
+        .star-b:nth-child(1) { top: 0; left: 10%; animation-duration: 2.5s; animation-delay: 0s; }
+        .star-b:nth-child(2) { top: 5px; left: 30%; animation-duration: 2.2s; animation-delay: 0.8s; }
+        .star-b:nth-child(3) { top: 2px; left: 60%; animation-duration: 2.8s; animation-delay: 1.5s; }
+        .star-b:nth-child(4) { top: 8px; left: 80%; animation-duration: 2.1s; animation-delay: 2.2s; }
+        .dot-b {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            opacity: 0;
+            animation: dot-fade 3s infinite ease-in-out;
+            pointer-events: none;
+        }
+        .dot-b:nth-child(1) { top: 6px; left: 20px; animation-delay: 0.3s; }
+        .dot-b:nth-child(2) { top: 22px; right: 25px; animation-delay: 1.2s; }
+        .dot-b:nth-child(3) { bottom: 8px; left: 40px; animation-delay: 2.1s; }
+        
+        @keyframes light-sweep { 0% { left: -100%; opacity: 0; } 20% { opacity: 1; } 80% { opacity: 1; } 100% { left: 300%; opacity: 0; } }
+        @keyframes text-shine { 0% { background-position: -100% 0; opacity: 0.8; } 50% { opacity: 1; } 100% { background-position: 200% 0; opacity: 0.8; } }
+        @keyframes number-shine { 0% { left: -100%; } 100% { left: 200%; } }
+        @keyframes star-fly { 0% { transform: translateX(0) translateY(0) rotate(0deg); opacity: 0; } 20% { opacity: 1; } 80% { opacity: 1; } 100% { transform: translateX(80px) translateY(-20px) rotate(15deg); opacity: 0; } }
+        @keyframes dot-fade { 0%, 100% { opacity: 0; transform: scale(0.5); } 50% { opacity: 0.7; transform: scale(1); } }
+        
+        .beauty-badge-a {
+            display: inline-flex;
+            align-items: center;
+            margin-left: 8px;
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: bold;
+            color: #fff;
+        }
+        .server-status {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: rgba(0,0,0,0.8);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+            border-left: 3px solid #10b981;
+        }
         .server-status.success { border-left-color: #10b981; }
         .server-status.error { border-left-color: #ef4444; }
         .visitor-item { background: rgba(139,92,246,0.1); border-left: 3px solid var(--warning); margin: 8px 0; padding: 10px; border-radius: 8px; }
@@ -153,15 +315,14 @@
         <div id="gamesContainer" class="games-grid"><div class="loading-spinner">请先登录并验证卡密...</div></div>
     </div>
     
-    <!-- 聊天页 -->
+    <!-- 聊天页（带靓号徽章和头像点击） -->
     <div id="chatPage" class="page-content">
         <div class="page-header"><h1>社区聊天 <span id="globalMuteIndicator" class="global-mute-badge" style="display:none;">全局禁言中</span></h1></div>
         <div class="chat-container">
             <div class="tabs" id="chatTabs"><button class="tab active" data-room="general">综合</button><button class="tab" data-room="support">支持</button><button class="tab" data-room="dev">开发</button></div>
             <div id="chatMsgs" class="chat-messages"></div>
             <div style="display:flex; gap:10px;">
-                <input id="chatInput" class="input-field" placeholder="输入消息..." 
-                       onkeypress="if(event.key==='Enter') sendChat()">
+                <input id="chatInput" class="input-field" placeholder="输入消息...">
                 <button id="sendChatBtn" class="btn">发送</button>
             </div>
         </div>
@@ -301,12 +462,34 @@ function showToast(msg, isError) {
 function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'})[m]); }
 
 function getBeautyBadgeHtml(userId, isBeauty) {
-    if (isBeauty === "B") return `<div class="beauty-badge-b"><span class="beauty-text-b">靓</span></div>`;
-    else if (isBeauty === "A") return `<span class="beauty-badge-a">靓号</span>`;
+    if (isBeauty === "B") {
+        return `<div class="beauty-badge-b"><div class="stars-container-b"><div class="star-b">★</div><div class="star-b">✦</div><div class="star-b">✧</div><div class="star-b">✦</div></div><span class="beauty-text-b" data-text="靓">靓</span><div class="number-box-b"><span class="beauty-number-b">${escapeHtml(userId)}</span></div><div class="dot-b"></div><div class="dot-b"></div><div class="dot-b"></div></div>`;
+    } else if (isBeauty === "A") {
+        return `<span class="beauty-badge-a">靓号</span>`;
+    }
     return "";
 }
 
-// ==================== 权限检查 ====================
+// 显示用户主页
+async function showUserProfile(username) {
+    try {
+        const res = await fetch(`/api/user/${username}`);
+        const user = await res.json();
+        if (!user) { showToast("用户不存在", true); return; }
+        const beautyBadge = getBeautyBadgeHtml(user.userId, user.isBeauty);
+        document.getElementById('profileContent').innerHTML = `
+            <div class="profile-avatar"><i class="fas fa-user fa-3x"></i></div>
+            <h2>${escapeHtml(username)}</h2>
+            <p><strong>ID:</strong> ${user.userId}</p>${beautyBadge}
+            <p><strong>角色:</strong> ${user.role || '用户'}</p>
+            <p><strong>注册时间:</strong> ${new Date(user.createdAt).toLocaleString()}</p>
+            <button class="btn btn-secondary close-profile" onclick="document.getElementById('profileModal').classList.remove('active')">关闭</button>
+        `;
+        document.getElementById('profileModal').classList.add('active');
+    } catch(e) { showToast("获取用户信息失败", true); }
+}
+
+// 权限检查
 function checkGameAccess() {
     if (!currentUser) { showToast("请先登录", true); document.getElementById('loginModal').classList.add('active'); return false; }
     if (!hasValidCard && currentRole !== 'owner') { showToast("需要有效卡密才能访问游戏库", true); document.getElementById('cardModal').classList.add('active'); return false; }
@@ -329,7 +512,6 @@ function checkAdminAccess() {
     return true;
 }
 
-// 全局禁言检查
 function canSendMessage() {
     if (globalMuteEnabled && currentRole !== 'owner') {
         showToast("系统维护中，聊天功能已关闭", true);
@@ -396,7 +578,7 @@ async function initHardwareFingerprint() {
     }
 }
 
-// ==================== 全局禁言相关 ====================
+// ==================== 全局禁言相关（持久化到GitHub） ====================
 async function initGlobalMute() {
     try {
         const res = await fetch('/api/admin/globalMuteStatus');
@@ -483,6 +665,7 @@ window.deleteReview = async (id) => {
     renderReviews();
 };
 
+// 聊天页面渲染（带靓号徽章和头像点击）
 async function renderChats(room) {
     if (!currentUser) return;
     try {
@@ -493,7 +676,8 @@ async function renderChats(room) {
             box.innerHTML = msgs.map(m => {
                 const isOwn = m.user === currentUser;
                 const beautyBadge = getBeautyBadgeHtml(m.userId, m.isBeauty);
-                return `<div class="msg-bubble ${isOwn ? 'msg-own' : ''}"><strong>${escapeHtml(m.user)}</strong>${beautyBadge}<span style="font-size:0.7rem; margin-left:8px;">${m.time}</span><br>${escapeHtml(m.text)}</div>`;
+                const avatarHtml = `<div class="avatar-img" onclick="showUserProfile('${escapeHtml(m.user)}')"><i class="fas fa-user"></i></div>`;
+                return `<div class="msg-bubble ${isOwn ? 'msg-own' : ''}" style="display:flex; align-items:flex-start;">${!isOwn ? avatarHtml : ''}<div style="flex:1;"><strong>${escapeHtml(m.user)}</strong>${beautyBadge}<span style="font-size:0.7rem; margin-left:8px;">${m.time}</span><br>${escapeHtml(m.text)}</div>${isOwn ? avatarHtml : ''}</div>`;
             }).join('');
             box.scrollTop = box.scrollHeight;
         }
@@ -607,7 +791,6 @@ async function renderAdminPanel() {
                     <div><strong>硬件ID:</strong> <span class="hwid-badge">${escapeHtml(v.hardwareId?.substring(0, 48) || '未知')}...</span></div>
                     <div><strong>首次访问:</strong> ${new Date(v.firstSeen).toLocaleString()}</div>
                     <div><strong>访问次数:</strong> ${v.visitCount || 1}</div>
-                    <div><strong>WebGL:</strong> ${escapeHtml(v.webgl?.substring(0, 50) || '未知')}</div>
                     <div style="margin-top:8px;">
                         <button class="ban-btn" onclick="banVisitor('${v.ip}', '${v.hardwareId}')">封禁IP+硬件</button>
                     </div>
@@ -840,6 +1023,7 @@ overlay.onclick = closeSidebar;
 document.querySelectorAll('.sidebar-link').forEach(link => { link.addEventListener('click', (e) => { let pg = e.currentTarget.dataset.page; if (pg) switchPage(pg); }); });
 
 document.getElementById('sendChatBtn')?.addEventListener('click', sendChat);
+document.getElementById('chatInput')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendChat(); });
 document.querySelectorAll('#chatTabs .tab').forEach(t => {
     t.addEventListener('click', () => {
         document.querySelectorAll('#chatTabs .tab').forEach(tt => tt.classList.remove('active'));
@@ -893,6 +1077,9 @@ document.getElementById('closeCardBtn')?.addEventListener('click', () => {
 });
 
 document.getElementById('toggleGlobalMuteBtn')?.addEventListener('click', toggleGlobalMute);
+
+// 暴露全局函数
+window.showUserProfile = showUserProfile;
 
 // ==================== 初始化 ====================
 async function initialize() {
