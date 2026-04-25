@@ -415,7 +415,8 @@ class HardwareFingerprint {
         } catch(e) { return 'audio_error'; }
     }
     
-    async getFonts() {
+
+async function getFonts() {
     const testFonts = ['Arial', 'Verdana', 'Times New Roman', '微软雅黑', 'PingFang SC', 'SimHei', 'Consolas', 'Courier New'];
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
@@ -426,8 +427,8 @@ class HardwareFingerprint {
             available.push(font);
         }
     }
-    return available.join(',');
-}
+    return available.join(','); 
+}  
 
 let currentUser = null, currentRole = null;
 let currentRoom = "general";
@@ -483,7 +484,6 @@ function getBeautyBadgeHtml(userId, isBeauty) {
     return "";
 }
 
-// 卡密验证并注册
 async function registerWithCard(username, password, cardKey) {
     if (!username || !password) {
         showToast('请填写用户名和密码', true);
