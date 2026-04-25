@@ -280,7 +280,7 @@
 </div>
 
 <div class="container">
-    <nav class="navbar"><div class="logo">LOVESS 硬件级防护</div><div class="menu-icon" id="menuToggle"><i class="fas fa-bars"></i></div></nav>
+    <nav class="navbar"><div class="logo">LOVESS </div><div class="menu-icon" id="menuToggle"><i class="fas fa-bars"></i></div></nav>
 
     <div id="reviewsPage" class="page-content active-page">
         <div class="page-header"><h1>用户评价</h1></div>
@@ -300,10 +300,10 @@
     <div id="featuresPage" class="page-content">
         <div class="page-header"><h1>核心功能</h1></div>
         <div class="games-grid">
-            <div class="game-card"><i class="fas fa-shield-alt" style="font-size:2rem;"></i><h3>硬件指纹封禁</h3><p>换浏览器/VPN无效</p></div>
+            <div class="game-card"><i class="fas fa-shield-alt" style="font-size:2rem;"></i><h3>anit-ban</h3><p>自动删除adonis/HD admin</p></div>
             <div class="game-card"><i class="fas fa-bolt"></i><h3>极速响应</h3><p>毫秒级命令处理</p></div>
             <div class="game-card"><i class="fas fa-users"></i><h3>社区驱动</h3><p>活跃社区</p></div>
-            <div class="game-card"><i class="fas fa-code"></i><h3>脚本执行器</h3><p>Lua脚本支持</p></div>
+            <div class="game-card"><i class="fas fa-code"></i><h3>require执行器</h3><p>Lua支持</p></div>
         </div>
     </div>
     
@@ -354,7 +354,7 @@
         <div id="adminContent" class="card">仅管理员可见</div>
     </div>
     
-    <footer>LOVESS - 硬件级防护系统 | 换浏览器/VPN无法绕过封禁</footer>
+    <footer>LOVESS </footer>
 </div>
 
 <div id="loginModal" class="login-modal"><div class="modal-container"><h2>登录</h2><input id="loginUsername" class="input-field" placeholder="用户名"><input id="loginPassword" type="password" class="input-field" placeholder="密码" style="margin-top:12px;"><div style="display:flex; gap:12px; margin-top:24px;"><button id="doLoginBtn" class="btn" style="flex:1;">登录</button><button id="toRegisterBtn" class="btn btn-secondary" style="flex:1;">去注册</button><button id="closeLoginBtn" class="btn btn-secondary">取消</button></div></div></div>
@@ -416,18 +416,17 @@ class HardwareFingerprint {
     }
     
     async getFonts() {
-        const testFonts = ['Arial', 'Verdana', 'Times New Roman', '微软雅黑', 'PingFang SC', 'SimHei', 'Consolas', 'Courier New'];
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        const available = [];
-        for (const font of testFonts) {
-            ctx.font = `20px ${font}`;
-            if (ctx.measureText('测').width > 0) {
-                available.push(font);
-            }
+    const testFonts = ['Arial', 'Verdana', 'Times New Roman', '微软雅黑', 'PingFang SC', 'SimHei', 'Consolas', 'Courier New'];
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const available = [];
+    for (const font of testFonts) {
+        ctx.font = `20px ${font}`;
+        if (ctx.measureText('测').width > 0) {
+            available.push(font);
         }
-        return available.join(',');
     }
+    return available.join(',');
 }
 
 let currentUser = null, currentRole = null;
@@ -435,10 +434,37 @@ let currentRoom = "general";
 let autoRefreshTimer = null;
 let currentUserData = null;
 let hardwareId = null;
-let hasValidCard = false;
 let globalMuteEnabled = false;
 
-const VALID_CARDS = ["LOVESS-3827", "LOVESS-9156", "LOVESS-4732", "LOVESS-7481", "LOVESS-2069", "LOVESS-8888", "LOVESS-9999"];
+async function verifyCardWithBackend(cardCode, username = null) {
+    try {
+        const response = await fetch('/api/verify-card', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                cardCode: cardCode,
+                hardwareId: hardwareId,
+                username: username || currentUser
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast(`卡密验证成功！等级: ${data.level === 'B' ? '靓号用户' : '普通用户'}`, false);
+            return { success: true, level: data.level };
+        } else {
+            showToast(data.message || '卡密无效，请检查后重试', true);
+            return { success: false, message: data.message };
+        }
+    } catch (error) {
+        console.error('验证请求失败:', error);
+        showToast('网络错误，请稍后重试', true);
+        return { success: false, message: '网络错误' };
+    }
+}
 
 function showToast(msg, isError) {
     let t = document.createElement('div'); t.className = 'toast';
@@ -455,6 +481,60 @@ function getBeautyBadgeHtml(userId, isBeauty) {
         return `<span class="beauty-badge-a">靓号</span>`;
     }
     return "";
+}
+
+// 卡密验证并注册
+async function registerWithCard(username, password, cardKey) {
+    if (!username || !password) {
+        showToast('请填写用户名和密码', true);
+        return false;
+    }
+    
+    if (cardKey && cardKey.trim() !== '') {
+        const verifyResult = await verifyCardWithBackend(cardKey, username);
+        if (!verifyResult.success) {
+            return false;
+        }
+    }
+    
+    try {
+        const response = await fetch('/api/register', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                username: username,
+                password: password,
+                cardKey: cardKey,
+                hardwareId: hardwareId
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast(data.message || '注册成功！', false);
+            return true;
+        } else {
+            showToast(data.error || '注册失败', true);
+            return false;
+        }
+    } catch (error) {
+        console.error('注册请求失败:', error);
+        showToast('网络错误，请稍后重试', true);
+        return false;
+    }
+}
+
+async function checkCardRequired(cardCode) {
+    if (!cardCode || cardCode.trim() === '') {
+        showToast('请输入卡密', true);
+        return false;
+    }
+    
+    const result = await verifyCardWithBackend(cardCode);
+    return result.success;
 }
 
 async function showUserProfile(username) {
