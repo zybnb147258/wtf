@@ -415,20 +415,20 @@ class HardwareFingerprint {
         } catch(e) { return 'audio_error'; }
     }
     
-
-async function getFonts() {
-    const testFonts = ['Arial', 'Verdana', 'Times New Roman', '微软雅黑', 'PingFang SC', 'SimHei', 'Consolas', 'Courier New'];
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const available = [];
-    for (const font of testFonts) {
-        ctx.font = `20px ${font}`;
-        if (ctx.measureText('测').width > 0) {
-            available.push(font);
+    async getFonts() {
+        const testFonts = ['Arial', 'Verdana', 'Times New Roman', '微软雅黑', 'PingFang SC', 'SimHei', 'Consolas', 'Courier New'];
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const available = [];
+        for (const font of testFonts) {
+            ctx.font = `20px ${font}`;
+            if (ctx.measureText('测').width > 0) {
+                available.push(font);
+            }
         }
+        return available.join(',');
     }
-    return available.join(','); 
-}  
+}
 
 let currentUser = null, currentRole = null;
 let currentRoom = "general";
@@ -1029,7 +1029,6 @@ async function register(username, password, cardKey) {
 function logout() { 
     currentUser = null; currentRole = null; currentUserData = null; 
     hasValidCard = false;
-    localStorage.removeItem('lovess_card_valid');
     updateSidebarUI(); 
     showToast("已登出", false);
     renderReviews();
