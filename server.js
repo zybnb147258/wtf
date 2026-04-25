@@ -20,6 +20,7 @@ let bannedIPs = new Set();
 let bannedUsers = new Set();
 let hardwareToUser = new Map();
 let visitors = new Map();
+let globalMuteEnabled = false;
 
 function generateHardwareId(fingerprint) {
     const stableFeatures = {
@@ -45,31 +46,61 @@ function loadBannedData() {
             bannedHardware = new Set(data.bannedHardware || []);
             bannedIPs = new Set(data.bannedIPs || []);
             bannedUsers = new Set(data.bannedUsers || []);
+            globalMuteEnabled = data.globalMuteEnabled || false;
             console.log(`封禁数据: ${bannedHardware.size} 硬件, ${bannedIPs.size} IP, ${bannedUsers.size} 用户`);
+        } else {
+            // 初始化空文件
+            saveBannedData();
         }
-    } catch(e) { console.error(e); }
+    } catch(e) { console.error('加载封禁数据失败:', e); }
 }
 
 function saveBannedData() {
     try {
-        fs.writeFileSync(path.join(__dirname, 'banned.json'), JSON.stringify({
+        const filePath = path.join(__dirname, 'banned.json');
+        fs.writeFileSync(filePath, JSON.stringify({
             bannedHardware: [...bannedHardware],
             bannedIPs: [...bannedIPs],
-            bannedUsers: [...bannedUsers]
+            bannedUsers: [...bannedUsers],
+            globalMuteEnabled: globalMuteEnabled
         }, null, 2));
-    } catch(e) { console.error(e); }
+    } catch(e) { console.error('保存封禁数据失败:', e); }
 }
+
+// ==================== 封禁中间件（返回404纯文本，看不到任何代码） ====================
+app.use((req, res, next) => {
+    const ip = getRealIP(req);
+    const hardwareId = req.headers['x-hardware-id'];
+    
+    // 跳过API路径
+    if (req.path.startsWith('/api/')) {
+        return next();
+    }
+    
+    // 跳过静态文件
+    if (req.path.match(/\.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf)$/)) {
+        return next();
+    }
+    
+    // 检查IP是否被封禁
+    if (bannedIPs.has(ip)) {
+        console.log(`🚫 404伪装: IP ${ip} 被封禁`);
+        return res.status(404).type('text/plain').send('404 Not Found');
+    }
+    
+    // 检查硬件是否被封禁
+    if (hardwareId && bannedHardware.has(hardwareId)) {
+        console.log(`🚫 404伪装: 硬件 ${hardwareId.substring(0, 16)}... 被封禁`);
+        return res.status(404).type('text/plain').send('404 Not Found');
+    }
+    
+    next();
+});
 
 // 访客追踪中间件
 app.use((req, res, next) => {
     const ip = getRealIP(req);
     const hardwareId = req.headers['x-hardware-id'] || req.body?.hardwareId;
-    
-    if (req.path.startsWith('/api/') && !req.path.includes('/fingerprint') && !req.path.includes('/login') && !req.path.includes('/register')) {
-        if (bannedIPs.has(ip)) {
-            return res.status(404).send('404 Not Found');
-        }
-    }
     
     const username = req.body?.username || req.headers['x-username'];
     if (hardwareId && (!username || username === 'unknown' || username === 'null')) {
@@ -94,7 +125,7 @@ app.use((req, res, next) => {
     next();
 });
 
-// 指纹注册接口
+// ==================== 指纹注册接口 ====================
 app.post('/api/fingerprint/register', (req, res) => {
     const { fingerprint, username } = req.body;
     const ip = getRealIP(req);
@@ -107,7 +138,7 @@ app.post('/api/fingerprint/register', (req, res) => {
     console.log(`指纹注册: ${hardwareId.substring(0, 16)}... IP: ${ip} 用户: ${username || '未登录'}`);
     
     if (bannedHardware.has(hardwareId)) {
-        return res.json({ success: false, banned: true, error: '此设备已被封禁，更换浏览器或VPN无效' });
+        return res.json({ success: false, banned: true, error: '此设备已被封禁' });
     }
     
     if (username && username !== 'unknown' && username !== 'null' && username !== 'undefined') {
@@ -249,6 +280,17 @@ app.get('/api/admin/pending', async (req, res) => {
 app.get('/api/admin/chats', async (req, res) => {
     const chats = await readJSON('chats.json') || [];
     res.json(chats);
+});
+
+app.get('/api/admin/globalMuteStatus', (req, res) => {
+    res.json({ enabled: globalMuteEnabled });
+});
+
+app.post('/api/admin/toggleGlobalMute', (req, res) => {
+    globalMuteEnabled = !globalMuteEnabled;
+    saveBannedData();
+    console.log(`全局禁言: ${globalMuteEnabled ? '开启' : '关闭'}`);
+    res.json({ enabled: globalMuteEnabled });
 });
 
 // ==================== GitHub 存储配置 ====================
@@ -404,16 +446,14 @@ app.post('/api/register', async (req, res) => {
     res.json({ success: true });
 });
 
-// ==================== 全局禁言 API ====================
-let globalMuteEnabled = false;
-
-app.get('/api/admin/globalMuteStatus', (req, res) => {
-    res.json({ enabled: globalMuteEnabled });
-});
-
-app.post('/api/admin/toggleGlobalMute', (req, res) => {
-    globalMuteEnabled = !globalMuteEnabled;
-    res.json({ enabled: globalMuteEnabled });
+app.get('/api/user/:username', async (req, res) => {
+    const users = await readJSON('users.json') || {};
+    const user = users[req.params.username];
+    if (user) {
+        res.json({ userId: user.userId, role: user.role, isBeauty: user.isBeauty, createdAt: user.createdAt });
+    } else {
+        res.json(null);
+    }
 });
 
 // ==================== 启动服务器 ====================
@@ -423,4 +463,5 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`LOVESS 后端已启动！`);
     console.log(`监听端口: ${PORT}`);
     console.log(`已封禁 ${bannedHardware.size} 个硬件, ${bannedIPs.size} 个IP, ${bannedUsers.size} 个用户`);
+    console.log(`全局禁言: ${globalMuteEnabled ? '开启' : '关闭'}`);
 });
