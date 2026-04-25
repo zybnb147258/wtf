@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>LOVESS - 硬件级防护系统</title>
+    <title>LOVESS</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
@@ -282,7 +282,6 @@
 <div class="container">
     <nav class="navbar"><div class="logo">LOVESS 硬件级防护</div><div class="menu-icon" id="menuToggle"><i class="fas fa-bars"></i></div></nav>
 
-    <!-- 评价页 -->
     <div id="reviewsPage" class="page-content active-page">
         <div class="page-header"><h1>用户评价</h1></div>
         <div class="stats-grid" id="reviewStats">
@@ -298,7 +297,6 @@
         </div>
     </div>
     
-    <!-- 功能页 -->
     <div id="featuresPage" class="page-content">
         <div class="page-header"><h1>核心功能</h1></div>
         <div class="games-grid">
@@ -309,13 +307,11 @@
         </div>
     </div>
     
-    <!-- 游戏页 -->
     <div id="gamesPage" class="page-content">
         <div class="page-header"><h1>游戏库 <button id="refreshGamesBtn" class="refresh-btn"><i class="fas fa-sync-alt"></i> 刷新</button></h1></div>
         <div id="gamesContainer" class="games-grid"><div class="loading-spinner">请先登录并验证卡密...</div></div>
     </div>
     
-    <!-- 聊天页（带靓号徽章和头像点击） -->
     <div id="chatPage" class="page-content">
         <div class="page-header"><h1>社区聊天 <span id="globalMuteIndicator" class="global-mute-badge" style="display:none;">全局禁言中</span></h1></div>
         <div class="chat-container">
@@ -328,14 +324,12 @@
         </div>
     </div>
     
-    <!-- 脚本页 -->
     <div id="scriptsPage" class="page-content">
         <div class="page-header"><h1>脚本库</h1></div>
         <div class="card"><h3>上传新脚本</h3><input id="scriptName" class="input-field" placeholder="脚本名称"><textarea id="scriptDesc" rows="2" class="input-field" placeholder="脚本描述"></textarea><button id="uploadScriptBtn" class="btn btn-success" style="margin-top:12px;">提交审核</button></div>
         <div id="scriptsContainer" class="scripts-grid"></div>
     </div>
     
-    <!-- 执行器页 -->
     <div id="executorPage" class="page-content">
         <div class="page-header"><h1>脚本执行器</h1></div>
         <div class="executor-panel">
@@ -345,13 +339,11 @@
         </div>
     </div>
     
-    <!-- 白名单页 -->
     <div id="whitelistPage" class="page-content">
         <div class="page-header"><h1>白名单管理</h1></div>
         <div id="whitelistContent" class="card">仅管理员可见</div>
     </div>
     
-    <!-- 管理面板 -->
     <div id="adminPage" class="page-content">
         <div class="page-header">
             <h1>管理面板</h1>
@@ -365,18 +357,15 @@
     <footer>LOVESS - 硬件级防护系统 | 换浏览器/VPN无法绕过封禁</footer>
 </div>
 
-<!-- 模态框 -->
 <div id="loginModal" class="login-modal"><div class="modal-container"><h2>登录</h2><input id="loginUsername" class="input-field" placeholder="用户名"><input id="loginPassword" type="password" class="input-field" placeholder="密码" style="margin-top:12px;"><div style="display:flex; gap:12px; margin-top:24px;"><button id="doLoginBtn" class="btn" style="flex:1;">登录</button><button id="toRegisterBtn" class="btn btn-secondary" style="flex:1;">去注册</button><button id="closeLoginBtn" class="btn btn-secondary">取消</button></div></div></div>
 
 <div id="registerModal" class="register-modal"><div class="modal-container"><h2>注册新账号</h2><input id="regUsername" class="input-field" placeholder="用户名 (至少3位)"><input id="regPassword" type="password" class="input-field" placeholder="密码" style="margin-top:12px;"><input id="regCard" class="input-field" placeholder="卡密 (选填)" style="margin-top:12px;"><div style="margin-top:8px; font-size:0.75rem; color:var(--text-muted);">卡密购买: QQ群 1095848365</div><div style="display:flex; gap:12px; margin-top:24px;"><button id="doRegisterBtn" class="btn btn-success" style="flex:1;">注册</button><button id="closeRegisterBtn" class="btn btn-secondary">取消</button></div></div></div>
 
 <div id="profileModal" class="profile-modal"><div class="profile-container" id="profileContent"></div></div>
 
-<!-- 卡密验证弹窗 -->
 <div id="cardModal" class="login-modal" style="z-index: 6000;"><div class="modal-container"><h2><i class="fas fa-key"></i> 卡密验证</h2><p style="margin:10px 0; color:var(--text-muted);">访问游戏库和执行器需要有效卡密</p><input id="cardInput" class="input-field" placeholder="请输入卡密" style="margin:16px 0;"><div style="display:flex; gap:12px;"><button id="submitCardBtn" class="btn btn-success" style="flex:1;">验证</button><button id="closeCardBtn" class="btn btn-secondary">取消</button></div></div></div>
 
 <script>
-// ==================== 硬件指纹生成器 ====================
 class HardwareFingerprint {
     async generate() {
         const features = {
@@ -441,7 +430,6 @@ class HardwareFingerprint {
     }
 }
 
-// ==================== 全局变量 ====================
 let currentUser = null, currentRole = null;
 let currentRoom = "general";
 let autoRefreshTimer = null;
@@ -452,7 +440,6 @@ let globalMuteEnabled = false;
 
 const VALID_CARDS = ["LOVESS-3827", "LOVESS-9156", "LOVESS-4732", "LOVESS-7481", "LOVESS-2069", "LOVESS-8888", "LOVESS-9999"];
 
-// ==================== 辅助函数 ====================
 function showToast(msg, isError) {
     let t = document.createElement('div'); t.className = 'toast';
     t.innerHTML = `<i class="fas ${isError ? 'fa-exclamation-triangle' : 'fa-check-circle'}"></i> ${msg}`;
@@ -480,14 +467,12 @@ async function showUserProfile(username) {
             <div class="profile-avatar"><i class="fas fa-user fa-3x"></i></div>
             <h2>${escapeHtml(username)}</h2><p><strong>ID:</strong> ${user.userId}</p>${beautyBadge}
             <p><strong>角色:</strong> ${user.role || '用户'}</p><p><strong>注册时间:</strong> ${new Date(user.createdAt).toLocaleString()}</p>
-            <p><strong>卡密状态:</strong> ${user.hasValidCard ? '已激活' : '未激活'}</p>
             <button class="btn btn-secondary close-profile" onclick="document.getElementById('profileModal').classList.remove('active')">关闭</button>
         `;
         document.getElementById('profileModal').classList.add('active');
     } catch(e) { showToast("获取用户信息失败", true); }
 }
 
-// 权限检查
 function checkGameAccess() {
     if (!currentUser) { showToast("请先登录", true); document.getElementById('loginModal').classList.add('active'); return false; }
     if (!hasValidCard && currentRole !== 'owner') { showToast("需要有效卡密才能访问游戏库", true); document.getElementById('cardModal').classList.add('active'); return false; }
@@ -518,7 +503,6 @@ function canSendMessage() {
     return true;
 }
 
-// 卡密验证
 function verifyCard(cardKey) {
     if (VALID_CARDS.includes(cardKey.trim().toUpperCase())) {
         hasValidCard = true;
@@ -546,7 +530,6 @@ function refreshExecutorAccess() {
     }
 }
 
-// ==================== 硬件指纹初始化 ====================
 async function initHardwareFingerprint() {
     try {
         const fp = new HardwareFingerprint();
@@ -555,10 +538,14 @@ async function initHardwareFingerprint() {
         const res = await fetch('/api/fingerprint/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fingerprint: features, username: currentUser || null })
+            body: JSON.stringify({ 
+                fingerprint: features, 
+                username: currentUser || null
+            })
         });
         
         const data = await res.json();
+        
         if (data.banned) {
             showToast(data.error || '此设备已被封禁', true);
             document.body.innerHTML = `<div style="text-align:center;padding:100px;color:#ef4444;"><i class="fas fa-shield-alt" style="font-size:64px;"></i><h1>设备已被封禁</h1><p>${data.error || '更换浏览器或VPN无效'}</p></div>`;
@@ -567,7 +554,7 @@ async function initHardwareFingerprint() {
         
         if (data.hardwareId) {
             hardwareId = data.hardwareId;
-            console.log('硬件指纹:', hardwareId.substring(0, 32) + '...');
+            console.log('硬件指纹已上报:', hardwareId.substring(0, 32) + '...');
         }
         return true;
     } catch(e) {
@@ -576,7 +563,16 @@ async function initHardwareFingerprint() {
     }
 }
 
-// ==================== 全局禁言相关（持久化到GitHub） ====================
+const originalFetch = window.fetch;
+window.fetch = function(url, options) {
+    options = options || {};
+    options.headers = options.headers || {};
+    if (hardwareId) {
+        options.headers['X-Hardware-Id'] = hardwareId;
+    }
+    return originalFetch.call(this, url, options);
+};
+
 async function initGlobalMute() {
     try {
         const res = await fetch('/api/admin/globalMuteStatus');
@@ -610,7 +606,6 @@ async function toggleGlobalMute() {
     } catch(e) { showToast("操作失败", true); }
 }
 
-// ==================== API 请求 ====================
 async function renderGames() {
     if (!checkGameAccess()) return;
     let container = document.getElementById('gamesContainer');
@@ -663,7 +658,6 @@ window.deleteReview = async (id) => {
     renderReviews();
 };
 
-// 聊天页面渲染（带靓号徽章和头像点击）
 async function renderChats(room) {
     if (!currentUser) return;
     try {
@@ -739,7 +733,6 @@ async function addToWhitelist() {
     renderWhitelistPage();
 }
 
-// ==================== 管理面板 ====================
 async function renderAdminPanel() {
     if (!checkAdminAccess()) return;
     
@@ -778,7 +771,6 @@ async function renderAdminPanel() {
             <div id="pendingScripts"></div>
         `;
         
-        // 访客列表
         let visitorsHtml = '<div style="border:1px solid var(--border);border-radius:12px;">';
         if (visitors.length === 0) {
             visitorsHtml += '<div style="padding:20px;text-align:center;">暂无访客记录</div>';
@@ -789,6 +781,7 @@ async function renderAdminPanel() {
                     <div><strong>硬件ID:</strong> <span class="hwid-badge">${escapeHtml(v.hardwareId?.substring(0, 48) || '未知')}...</span></div>
                     <div><strong>首次访问:</strong> ${new Date(v.firstSeen).toLocaleString()}</div>
                     <div><strong>访问次数:</strong> ${v.visitCount || 1}</div>
+                    <div><strong>WebGL:</strong> ${escapeHtml(v.webgl?.substring(0, 50) || '未知')}</div>
                     <div style="margin-top:8px;">
                         <button class="ban-btn" onclick="banVisitor('${v.ip}', '${v.hardwareId}')">封禁IP+硬件</button>
                     </div>
@@ -798,7 +791,6 @@ async function renderAdminPanel() {
         visitorsHtml += '</div>';
         document.getElementById('visitorsList').innerHTML = visitorsHtml;
         
-        // 硬件列表
         const hardwareMap = new Map();
         for (const user of users) {
             if (user.hardwareId) {
@@ -820,7 +812,6 @@ async function renderAdminPanel() {
         hardwareHtml += '</div>';
         document.getElementById('hardwareList').innerHTML = hardwareHtml;
         
-        // 用户管理
         document.getElementById('userMgmt').innerHTML = users.map(user => `
             <div class="admin-row">
                 <span><strong>${escapeHtml(user.name)}</strong> (${user.role}) | ${user.banned ? '<span style="color:#ef4444;">已封禁</span>' : '正常'} ${user.isMuted ? '🔇' : ''}<br><small class="hwid-badge">HW: ${user.hardwareId?.substring(0, 16) || '无'}...</small></span>
@@ -832,7 +823,6 @@ async function renderAdminPanel() {
             </div>
         `).join('');
         
-        // 待审核脚本
         document.getElementById('pendingScripts').innerHTML = pending.length === 0 ? '<div>暂无待审核</div>' : pending.map(s => `
             <div class="admin-row">
                 <div><strong>${escapeHtml(s.name)}</strong><br>${escapeHtml(s.desc)}<br>作者: ${escapeHtml(s.author)}</div>
@@ -844,7 +834,6 @@ async function renderAdminPanel() {
     } catch(e) { console.error(e); }
 }
 
-// 管理函数
 window.banVisitor = async (ip, hardwareId) => {
     if (!confirm(`封禁访客 IP: ${ip} 及其硬件?`)) return;
     if (hardwareId) await fetch('/api/admin/banHardware', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ hardwareId }) });
@@ -894,7 +883,6 @@ window.rejectScript = async (id) => {
     renderScripts();
 };
 
-// ==================== 登录/注册 ====================
 async function login(username, password) {
     try {
         const res = await fetch('/api/login', { 
@@ -977,7 +965,6 @@ function updateSidebarUI() {
     }
 }
 
-// ==================== 页面切换 ====================
 function switchPage(pageId) {
     if (pageId === 'games') { if (!checkGameAccess()) return; }
     if (pageId === 'executor') { if (!checkExecutorAccess()) return; }
@@ -1002,7 +989,6 @@ function switchPage(pageId) {
     if (pageId === 'admin' && currentRole === 'owner') renderAdminPanel();
 }
 
-// 自动刷新
 function startAutoRefresh() {
     if (autoRefreshTimer) clearInterval(autoRefreshTimer);
     autoRefreshTimer = setInterval(async () => {
@@ -1013,7 +999,6 @@ function startAutoRefresh() {
     }, 5000);
 }
 
-// ==================== 事件绑定 ====================
 const sidebarEl = document.getElementById('sidebar'), overlay = document.getElementById('sidebarOverlay');
 document.getElementById('menuToggle').onclick = () => { sidebarEl.classList.add('open'); overlay.classList.add('active'); };
 function closeSidebar() { sidebarEl.classList.remove('open'); overlay.classList.remove('active'); }
@@ -1078,7 +1063,6 @@ document.getElementById('toggleGlobalMuteBtn')?.addEventListener('click', toggle
 
 window.showUserProfile = showUserProfile;
 
-// ==================== 初始化 ====================
 async function initialize() {
     loadCachedCard();
     await initHardwareFingerprint();
