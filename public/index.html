@@ -583,30 +583,32 @@ function canSendMessage() {
     return true;
 }
 
-function verifyCard(cardKey) {
-    if (VALID_CARDS.includes(cardKey.trim().toUpperCase())) {
+async function verifyCard(cardKey) {
+    if (!cardKey || cardKey.trim() === '') {
+        showToast("请输入卡密", true);
+        return false;
+    }
+    
+    const result = await verifyCardWithBackend(cardKey, currentUser);
+    
+    if (result.success) {
         hasValidCard = true;
-        localStorage.setItem('lovess_card_valid', 'true');
         showToast("卡密验证成功！", false);
         document.getElementById('cardModal').classList.remove('active');
         if (document.getElementById('gamesPage').classList.contains('active-page')) renderGames();
         if (document.getElementById('executorPage').classList.contains('active-page')) refreshExecutorAccess();
         return true;
-    } else {
-        showToast("卡密无效", true);
-        return false;
     }
+    return false;
 }
 
 function loadCachedCard() {
-    if (localStorage.getItem('lovess_card_valid') === 'true') {
-        hasValidCard = true;
-    }
+    hasValidCard = false;
 }
 
 function refreshExecutorAccess() {
     if (currentUser && (hasValidCard || currentRole === 'owner')) {
-        document.getElementById('executorLog').innerHTML = '执行器已解锁，可以执行脚本';
+        document.getElementById('executorLog').innerHTML = '已认证';
     }
 }
 
@@ -627,8 +629,8 @@ async function initHardwareFingerprint() {
         const data = await res.json();
         
         if (data.banned) {
-            showToast(data.error || '此设备已被封禁', true);
-            document.body.innerHTML = `<div style="text-align:center;padding:100px;color:#ef4444;"><i class="fas fa-shield-alt" style="font-size:64px;"></i><h1>设备已被封禁</h1><p>${data.error || '更换浏览器或VPN无效'}</p></div>`;
+            showToast(data.error || 'idiot', true);
+            document.body.innerHTML = `<div style="text-align:center;padding:100px;color:#ef4444;"><i class="fas fa-shield-alt" style="font-size:64px;"></i><h1>FUCK YOU M</h1><p>${data.error || 'banned'}</p></div>`;
             return false;
         }
         
