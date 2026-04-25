@@ -28,7 +28,7 @@
         
         .navbar { display: flex; justify-content: space-between; align-items: center; padding: 20px 0; position: sticky; top: 0; z-index: 1000; background: rgba(26,20,57,0.95); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); }
         .logo { font-size: 1.8rem; font-weight: 800; background: linear-gradient(135deg, var(--primary), var(--accent)); -webkit-background-clip: text; background-clip: text; color: transparent; }
-        .menu-icon { font-size: 1.8rem; cursor: pointer; background: var(--surface); width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius); border: 1px solid var(--border); transition: var(--transition); z-index: 1001; }
+        .menu-icon { font-size: 1.8rem; cursor: pointer; background: var(--surface); width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius); border: 1px solid var(--border); transition: var(--transition); }
         .menu-icon:hover { background: var(--surface-hover); color: var(--primary); }
         .sidebar { position: fixed; top: 0; left: -280px; width: 280px; height: 100%; background: var(--surface); backdrop-filter: blur(30px); z-index: 2000; transition: left 0.3s; padding: 80px 20px 30px; border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 16px; overflow-y: auto; }
         .sidebar.open { left: 0; }
@@ -77,7 +77,7 @@
         .refresh-btn { margin-left: 16px; background: var(--surface-alt); border: 1px solid var(--border); padding: 8px 16px; border-radius: var(--radius); cursor: pointer; font-size: 0.9rem; }
         .game-player-count { font-size: 0.85rem; color: var(--text-muted); margin: 8px 0; }
         .admin-row { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 8px; }
-        .ban-btn { padding: 4px 12px; font-size: 0.8rem; cursor: pointer; border-radius: 8px; border: none; color: white; background: #ef4444; }
+        .ban-btn { padding: 4px 12px; font-size: 0.8rem; cursor: pointer; }
         .game-icon { width: 100%; height: 120px; object-fit: cover; border-radius: 12px; margin-bottom: 12px; background: var(--surface-alt); }
         .avatar-img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; margin-right: 12px; cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; background: var(--surface-alt); }
         .avatar-img:hover { transform: scale(1.1); border: 2px solid var(--primary); }
@@ -262,19 +262,14 @@
             font-size: 12px;
             margin-left: 12px;
         }
-        .fingerprint-banner {
-            position: fixed;
-            bottom: 20px;
-            left: 20px;
-            background: rgba(0,0,0,0.6);
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-size: 10px;
-            font-family: monospace;
-            color: var(--text-muted);
-            z-index: 99;
-            backdrop-filter: blur(5px);
-            pointer-events: none;
+        .fingerprint-warning {
+            background: rgba(239,68,68,0.2);
+            border: 1px solid #ef4444;
+            padding: 8px 16px;
+            border-radius: 12px;
+            margin: 10px 0;
+            font-size: 14px;
+            text-align: center;
         }
     </style>
 </head>
@@ -339,8 +334,6 @@
     <footer>LOVESS</footer>
 </div>
 
-<div class="fingerprint-banner" id="fingerprintDisplay">指纹初始化中...</div>
-
 <div id="loginModal" class="login-modal"><div class="modal-container"><h2>登录</h2><input id="loginUsername" class="input-field" placeholder="用户名"><input id="loginPassword" type="password" class="input-field" placeholder="密码" style="margin-top:12px;"><div style="display:flex; gap:12px; margin-top:24px;"><button id="doLoginBtn" class="btn" style="flex:1;">登录</button><button id="toRegisterBtn" class="btn btn-secondary" style="flex:1;">去注册</button><button id="closeLoginBtn" class="btn btn-secondary">取消</button></div></div></div>
 
 <div id="registerModal" class="register-modal"><div class="modal-container"><h2>注册新账号</h2><input id="regUsername" class="input-field" placeholder="用户名 (至少3位)"><input id="regPassword" type="password" class="input-field" placeholder="密码" style="margin-top:12px;"><input id="regCard" class="input-field" placeholder="卡密 (选填)" style="margin-top:12px;"><div style="margin-top:8px; font-size:0.75rem; color:var(--text-muted);">卡密需购买QQ群: 1095848365 </div><input type="file" id="regAvatar" accept="image/*" style="margin-top:12px; background:var(--surface-alt); color:var(--text-primary);"><div style="margin-top:8px; font-size:0.7rem; color:var(--text-muted);">可选：上传头像</div><div style="display:flex; gap:12px; margin-top:24px;"><button id="doRegisterBtn" class="btn btn-success" style="flex:1;">注册</button><button id="closeRegisterBtn" class="btn btn-secondary">取消</button></div></div></div>
@@ -348,7 +341,215 @@
 <div id="profileModal" class="profile-modal"><div class="profile-container" id="profileContent"></div></div>
 
 <script>
-// ==================== 原有代码 ====================
+// ==================== 浏览器指纹生成 ====================
+class FingerprintGenerator {
+    constructor() {
+        this.fingerprint = null;
+        this.fingerprintId = null;
+    }
+    
+    async generate() {
+        const components = {
+            userAgent: navigator.userAgent,
+            platform: navigator.platform,
+            language: navigator.language,
+            languages: navigator.languages ? navigator.languages.join(',') : '',
+            hardwareConcurrency: navigator.hardwareConcurrency || 0,
+            deviceMemory: navigator.deviceMemory || 0,
+            screenResolution: `${screen.width}x${screen.height}`,
+            screenColorDepth: screen.colorDepth,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            timezoneOffset: new Date().getTimezoneOffset(),
+            localStorage: this.testLocalStorage(),
+            sessionStorage: this.testSessionStorage(),
+            indexedDB: !!window.indexedDB,
+            openDatabase: !!window.openDatabase,
+            canvasFingerprint: await this.getCanvasFingerprint(),
+            webglFingerprint: this.getWebGLFingerprint(),
+            audioFingerprint: await this.getAudioFingerprint(),
+            fonts: this.getFonts(),
+            touchSupport: this.getTouchSupport(),
+            plugins: this.getPlugins(),
+            doNotTrack: navigator.doNotTrack,
+            maxTouchPoints: navigator.maxTouchPoints || 0,
+            vendor: navigator.vendor || '',
+            productSub: navigator.productSub || '',
+            cpuClass: navigator.cpuClass || '',
+            deviceOrientation: screen.orientation ? screen.orientation.type : '',
+            colorGamut: this.getColorGamut(),
+            reducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+            prefersColorScheme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+        };
+        
+        this.fingerprint = components;
+        this.fingerprintId = await this.hashComponents(components);
+        return {
+            components: components,
+            id: this.fingerprintId
+        };
+    }
+    
+    async hashComponents(components) {
+        const str = JSON.stringify(components);
+        const encoder = new TextEncoder();
+        const data = encoder.encode(str);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+    
+    testLocalStorage() {
+        try {
+            localStorage.setItem('test', 'test');
+            localStorage.removeItem('test');
+            return true;
+        } catch(e) { return false; }
+    }
+    
+    testSessionStorage() {
+        try {
+            sessionStorage.setItem('test', 'test');
+            sessionStorage.removeItem('test');
+            return true;
+        } catch(e) { return false; }
+    }
+    
+    async getCanvasFingerprint() {
+        return new Promise((resolve) => {
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = 200;
+                canvas.height = 50;
+                const ctx = canvas.getContext('2d');
+                ctx.textBaseline = 'top';
+                ctx.font = '14px Arial';
+                ctx.fillStyle = '#f60';
+                ctx.fillRect(0, 0, 100, 40);
+                ctx.fillStyle = '#069';
+                ctx.fillText('LOVESS Fingerprint', 2, 15);
+                ctx.fillStyle = 'rgba(102, 204, 0, 0.7)';
+                ctx.fillText('LOVESS Fingerprint', 4, 17);
+                const dataURL = canvas.toDataURL();
+                const hash = this.simpleHash(dataURL);
+                resolve(hash);
+            } catch(e) {
+                resolve('canvas_error');
+            }
+        });
+    }
+    
+    getWebGLFingerprint() {
+        try {
+            const canvas = document.createElement('canvas');
+            const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+            if (!gl) return 'webgl_not_supported';
+            const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+            if (debugInfo) {
+                const vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL);
+                const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+                return `${vendor}||${renderer}`;
+            }
+            return 'webgl_no_debug';
+        } catch(e) {
+            return 'webgl_error';
+        }
+    }
+    
+    async getAudioFingerprint() {
+        return new Promise((resolve) => {
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const analyser = audioContext.createAnalyser();
+                const oscillator = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                
+                oscillator.type = 'triangle';
+                oscillator.frequency.value = 10000;
+                gain.gain.value = 0;
+                
+                oscillator.connect(gain);
+                gain.connect(analyser);
+                analyser.connect(audioContext.destination);
+                
+                oscillator.start(0);
+                gain.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.1);
+                
+                const frequencyData = new Uint8Array(analyser.frequencyBinCount);
+                analyser.getByteFrequencyData(frequencyData);
+                
+                oscillator.stop(0);
+                audioContext.close();
+                
+                const hash = this.simpleHash(frequencyData.join(','));
+                resolve(hash);
+            } catch(e) {
+                resolve('audio_error');
+            }
+        });
+    }
+    
+    getFonts() {
+        const baseFonts = ['monospace', 'sans-serif', 'serif'];
+        const testFonts = ['Arial', 'Verdana', 'Times New Roman', 'Courier New', 'Georgia', 'Comic Sans MS', 'Impact', 'Lucida Console', 'Tahoma', 'Trebuchet MS'];
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const text = 'mmmmmmiiiilll';
+        
+        function getWidth(font) {
+            ctx.font = `20px ${font}`;
+            return ctx.measureText(text).width;
+        }
+        
+        const baseWidths = {};
+        for (const font of baseFonts) {
+            baseWidths[font] = getWidth(font);
+        }
+        
+        const detected = [];
+        for (const font of testFonts) {
+            let detectedFont = false;
+            for (const base of baseFonts) {
+                if (getWidth(font) !== baseWidths[base]) {
+                    detectedFont = true;
+                    break;
+                }
+            }
+            if (detectedFont) detected.push(font);
+        }
+        
+        return detected.join(',');
+    }
+    
+    getTouchSupport() {
+        return ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0);
+    }
+    
+    getPlugins() {
+        const plugins = [];
+        for (let i = 0; i < navigator.plugins.length; i++) {
+            plugins.push(navigator.plugins[i].name);
+        }
+        return plugins.join(',');
+    }
+    
+    getColorGamut() {
+        if (window.matchMedia('(color-gamut: p3)').matches) return 'p3';
+        if (window.matchMedia('(color-gamut: rec2020)').matches) return 'rec2020';
+        return 'srgb';
+    }
+    
+    simpleHash(str) {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash;
+        }
+        return Math.abs(hash).toString(16);
+    }
+}
+
+// ==================== 全局变量 ====================
 const API_BASE = '';
 let currentUser = null, currentRole = null;
 let currentRoom = "general";
@@ -356,107 +557,39 @@ let githubGames = [];
 let autoRefreshTimer = null;
 let currentUserData = null;
 let globalMuteEnabled = false;
-
-// ==================== 指纹系统 ====================
 let deviceFingerprint = null;
+let deviceFingerprintId = null;
 
-async function generateFingerprint() {
-    const components = [];
-    const canvas = document.createElement('canvas');
-    canvas.width = 200;
-    canvas.height = 80;
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#8b5cf6';
-    ctx.fillRect(0, 0, 200, 80);
-    ctx.font = '14px "Arial"';
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText('LOVESS', 20, 40);
-    ctx.font = 'italic 10px "Courier"';
-    ctx.fillStyle = '#d946ef';
-    ctx.fillText('Fingerprint', 20, 60);
-    components.push(canvas.toDataURL().substring(0, 100));
-    
+// 初始化指纹
+async function initFingerprint() {
     try {
-        const gl = document.createElement('canvas').getContext('webgl');
-        if (gl) {
-            const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-            if (debugInfo) {
-                components.push(gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) || '');
-                components.push(gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) || '');
-            }
-        }
-    } catch(e) { components.push('webgl_error'); }
-    
-    try {
-        const AudioCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
-        if (AudioCtx) {
-            const actx = new AudioCtx(1, 44100, 44100);
-            const osc = actx.createOscillator();
-            osc.type = 'sine';
-            osc.frequency.value = 440;
-            const compressor = actx.createDynamicsCompressor();
-            osc.connect(compressor);
-            compressor.connect(actx.destination);
-            osc.start();
-            const buffer = await actx.startRendering();
-            const channel = buffer.getChannelData(0).slice(0, 100);
-            components.push(channel.reduce((s, v) => s + Math.abs(v).toFixed(5), ''));
-        }
-    } catch(e) { components.push('audio_fail'); }
-    
-    components.push(`${screen.width}x${screen.height}x${screen.colorDepth}`);
-    components.push(navigator.language);
-    components.push(navigator.userAgent);
-    components.push(navigator.hardwareConcurrency || 'unknown');
-    components.push(navigator.plugins.length);
-    components.push(Intl.DateTimeFormat().resolvedOptions().timeZone);
-    
-    const raw = components.join('|##|');
-    let hash = 0;
-    for (let i = 0; i < raw.length; i++) {
-        hash = ((hash << 5) - hash) + raw.charCodeAt(i);
-        hash |= 0;
-    }
-    return Math.abs(hash).toString(16).padStart(16, '0').substring(0, 16);
-}
-
-async function checkFingerprintBan() {
-    try {
-        const res = await fetch('/api/fingerprint/check', {
+        const fpGen = new FingerprintGenerator();
+        const result = await fpGen.generate();
+        deviceFingerprint = result.components;
+        deviceFingerprintId = result.id;
+        console.log('设备指纹已生成:', deviceFingerprintId);
+        
+        // 注册指纹到服务器
+        const registerRes = await fetch('/api/fingerprint/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fingerprint: deviceFingerprint })
+            body: JSON.stringify({ fingerprint: deviceFingerprint, username: currentUser || 'unknown' })
         });
-        const data = await res.json();
-        if (data.banned) {
-            showToast('设备指纹已被封禁！', true);
-            document.body.innerHTML = '<div style="text-align:center;margin-top:20vh;"><i class="fas fa-fingerprint" style="font-size:80px;color:#ef4444;"></i><h1 style="color:#ef4444;margin-top:20px;">设备已被封禁</h1><p>该设备指纹涉及违规行为，已被永久限制访问。</p><button onclick="location.reload()" class="btn" style="margin-top:20px;">刷新页面</button></div>';
+        const registerData = await registerRes.json();
+        
+        if (registerData.banned) {
+            showToast('您的设备已被封禁，无法使用本服务', true);
+            document.body.style.opacity = '0.5';
+            document.body.style.pointerEvents = 'none';
             return false;
         }
+        
         return true;
-    } catch(e) { return true; }
-}
-
-async function reportActivity(action) {
-    if (!deviceFingerprint) return;
-    try {
-        await fetch('/api/fingerprint/record', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fingerprint: deviceFingerprint, username: currentUser || 'unknown', action })
-        });
-    } catch(e) {}
-}
-
-const originalFetch = window.fetch;
-window.fetch = function(url, options = {}) {
-    if (deviceFingerprint && !url.includes('/fingerprint/')) {
-        options.headers = options.headers || {};
-        options.headers['X-Device-Fingerprint'] = deviceFingerprint;
-        if (currentUser) options.headers['X-Username'] = currentUser;
+    } catch(e) {
+        console.error('指纹生成失败:', e);
+        return true; // 即使指纹失败也不阻塞
     }
-    return originalFetch.call(this, url, options);
-};
+}
 
 function showToast(msg, isError) {
     let t = document.createElement('div'); t.className = 'toast';
@@ -475,6 +608,10 @@ function getBeautyBadgeHtml(userId, isBeauty) {
     return "";
 }
 
+function getFingerprintHeader() {
+    return deviceFingerprintId || '';
+}
+
 function checkAccess() {
     if (!currentUser) {
         showToast("请先登录账号", true);
@@ -482,6 +619,13 @@ function checkAccess() {
         return false;
     }
     return true;
+}
+
+function addFingerprintToBody(body) {
+    if (deviceFingerprintId) {
+        return { ...body, fingerprintId: deviceFingerprintId };
+    }
+    return body;
 }
 
 async function checkServerStatus() {
@@ -512,19 +656,17 @@ async function renderReviews() {
 
 async function submitReview() {
     if (!checkAccess()) return;
-    if (globalMuteEnabled && currentRole !== 'owner') { showToast("系统维护中，评价功能已关闭", true); return; }
     let content = document.getElementById('newReviewContent').value.trim();
     let rating = parseInt(document.getElementById('newReviewRating').value);
     if (!content) { showToast("请输入评价内容", true); return; }
     await fetch('/api/review', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: currentUser, rating, text: content, fingerprint: deviceFingerprint })
+        body: JSON.stringify(addFingerprintToBody({ name: currentUser, rating, text: content }))
     });
     showToast("评价发布成功", false);
     document.getElementById('newReviewContent').value = '';
     renderReviews();
-    await reportActivity('review');
 }
 
 window.deleteReview = async (id) => {
@@ -573,20 +715,13 @@ async function sendChat() {
     let inp = document.getElementById('chatInput');
     if (!inp.value.trim()) return;
     if (globalMuteEnabled && currentRole !== 'owner') { showToast("系统维护中，聊天功能已关闭", true); return; }
-    try {
-        const res = await fetch('/api/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user: currentUser, text: inp.value, room: currentRoom, userId: currentUserData?.userId || "", isBeauty: currentUserData?.isBeauty || "A", fingerprint: deviceFingerprint })
-        });
-        if (res.status === 429) {
-            showToast("发言太快，请稍后再试", true);
-            return;
-        }
-        renderChats(currentRoom);
-        inp.value = '';
-        await reportActivity('chat');
-    } catch(e) { showToast("发送失败", true); }
+    await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(addFingerprintToBody({ user: currentUser, text: inp.value, room: currentRoom, userId: currentUserData?.userId || "", isBeauty: currentUserData?.isBeauty || "A" }))
+    });
+    renderChats(currentRoom);
+    inp.value = '';
 }
 
 async function renderScripts() {
@@ -600,21 +735,19 @@ async function renderScripts() {
 
 async function uploadScript() {
     if (!checkAccess()) return;
-    if (globalMuteEnabled && currentRole !== 'owner') { showToast("系统维护中，脚本上传已关闭", true); return; }
     let name = document.getElementById('scriptName').value.trim();
     let desc = document.getElementById('scriptDesc').value.trim();
     if (!name || !desc) { showToast("请填写脚本名称和描述", true); return; }
     await fetch('/api/script/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, desc, author: currentUser, fingerprint: deviceFingerprint })
+        body: JSON.stringify(addFingerprintToBody({ name, desc, author: currentUser }))
     });
     showToast("脚本已提交审核", false);
     document.getElementById('scriptName').value = '';
     document.getElementById('scriptDesc').value = '';
     renderScripts();
     if (currentRole === 'owner') renderAdminPanel();
-    await reportActivity('upload');
 }
 
 async function renderWhitelist() {
@@ -640,7 +773,11 @@ async function addToWhitelist() {
 
 async function login(username, password) {
     try {
-        const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password, fingerprint: deviceFingerprint }) });
+        const res = await fetch('/api/login', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify(addFingerprintToBody({ username, password }))
+        });
         const data = await res.json();
         console.log("登录响应:", data);
         
@@ -665,7 +802,6 @@ async function login(username, password) {
             await renderScripts();
             await renderWhitelist();
             if (currentRole === 'owner') await renderAdminPanel();
-            await reportActivity('login');
             
             return true;
         } else {
@@ -682,7 +818,11 @@ async function register(username, password, cardKey, avatarBase64) {
     if (username.length < 3) { showToast("用户名至少3位", true); return false; }
     if (password.length < 3) { showToast("密码至少3位", true); return false; }
     try {
-        const res = await fetch('/api/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password, cardKey, fingerprint: deviceFingerprint }) });
+        const res = await fetch('/api/register', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify(addFingerprintToBody({ username, password, cardKey }))
+        });
         const data = await res.json();
         if (data.success) {
             showToast(`注册成功！`, false);
@@ -714,7 +854,6 @@ async function showUserProfile(username) {
 }
 
 function logout() { 
-    reportActivity('logout');
     currentUser = null; currentRole = null; currentUserData = null; 
     updateSidebarUI(); 
     showToast("已登出", false); 
@@ -745,17 +884,19 @@ async function renderAdminPanel() {
         let ips = await ipsRes.json();
         const bannedRes = await fetch('/api/admin/banned');
         let bannedData = await bannedRes.json();
+        const fingerprintsRes = await fetch('/api/admin/fingerprints');
+        let fingerprints = await fingerprintsRes.json();
+        
         const bannedIPs = new Set(bannedData.bannedIPs || []);
-        const fpRes = await fetch('/api/fingerprint/list');
-        let bannedFps = await fpRes.json();
+        const bannedFingerprints = new Set(bannedData.bannedFingerprints || []);
         
         let container = document.getElementById('adminContent');
         container.innerHTML = `
             <h3>系统统计</h3>
-            <p>总用户: ${users.length} | 待审核脚本: ${pending.length} | 评价: ${reviews.length}</p>
+            <p>总用户: ${users.length} | 待审核脚本: ${pending.length} | 评价: ${reviews.length} | 已封禁指纹: ${bannedFingerprints.size}</p>
             
-            <h3 style="margin-top:20px;">指纹封禁库 (${bannedFps.length})</h3>
-            <div id="fpMgmt" style="max-height:200px;overflow:auto;margin-bottom:20px;"></div>
+            <h3 style="margin-top:20px;">指纹管理 <span style="font-size:12px;color:#a78bfa;">(用于封禁设备)</span></h3>
+            <div id="fpMgmt" style="max-height:300px;overflow-y:auto;margin-bottom:20px;"></div>
             
             <h3 style="margin-top:20px;">IP 记录与封禁管理</h3>
             <div id="ipMgmt" style="max-height:300px;overflow-y:auto;margin-bottom:20px;"></div>
@@ -773,16 +914,25 @@ async function renderAdminPanel() {
             <div id="chatMgmt"></div>
         `;
         
+        // 指纹管理
         let fpHtml = '<div style="border:1px solid #3a3168;border-radius:12px;padding:10px;">';
-        for (const fp of bannedFps) {
+        for (const fp of fingerprints) {
+            const isBanned = bannedFingerprints.has(fp.fingerprintId);
             fpHtml += `<div class="admin-row" style="border-bottom:1px solid #333;padding:8px">
-                <span><code style="font-size:11px;">${fp.fingerprint.substring(0,16)}...</code> | 原因: ${fp.reason || '违规行为'}</span>
-                <div><button class="btn-success ban-btn" onclick="unbanFingerprint('${fp.fingerprint}')">解封指纹</button></div>
+                <span><strong>指纹ID:</strong> ${fp.fingerprintId.substring(0, 24)}...<br><small>关联用户: ${fp.owner || '未知'}</small></span>
+                <div>
+                    ${!isBanned ? 
+                        `<button class="btn-danger ban-btn" onclick="banFingerprint('${fp.fingerprintId}', '${fp.owner || ''}')">封禁指纹</button>` :
+                        `<button class="btn-success ban-btn" onclick="unbanFingerprint('${fp.fingerprintId}')">解封指纹</button>`
+                    }
+                </div>
             </div>`;
         }
+        if (fingerprints.length === 0) fpHtml += '<div>暂无指纹记录</div>';
         fpHtml += '</div>';
         document.getElementById('fpMgmt').innerHTML = fpHtml;
         
+        // IP 管理
         let ipHtml = '<div style="border:1px solid #3a3168;border-radius:12px;padding:10px;">';
         for (const item of ips) {
             const isBanned = bannedIPs.has(item.ip);
@@ -799,16 +949,16 @@ async function renderAdminPanel() {
         ipHtml += '</div>';
         document.getElementById('ipMgmt').innerHTML = ipHtml;
         
+        // 用户管理
         document.getElementById('userMgmt').innerHTML = users.map(user => `
             <div class="admin-row">
-                <span><strong>${escapeHtml(user.name)}</strong> (${user.role}) | IP: ${user.registerIP || '未知'} | ${user.isBeauty === 'B' ? '[靓号]' : ''} ${user.banned ? '[已封禁]' : ''} ${user.isMuted ? '[已禁言]' : ''}</span>
+                <span><strong>${escapeHtml(user.name)}</strong> (${user.role}) | IP: ${user.registerIP || '未知'} | ${user.isBeauty === 'B' ? '[靓号]' : ''} ${user.banned ? '[已封禁]' : ''} ${user.isMuted ? '[已禁言]' : ''} ${user.fingerprintId ? '[有指纹]' : ''}</span>
                 <div>
                     <button class="btn-secondary ban-btn" onclick="toggleBanUser('${escapeHtml(user.name)}')">${user.banned ? '解封' : '封禁'}</button>
                     <button class="btn-secondary ban-btn" onclick="toggleMuteUser('${escapeHtml(user.name)}')">${user.isMuted ? '解除禁言' : '禁言'}</button>
                     <button class="btn-success ban-btn" onclick="setBeautyUser('${escapeHtml(user.name)}', 'A')">A靓号</button>
                     <button class="btn ban-btn" style="background:#ff3366;" onclick="setBeautyUser('${escapeHtml(user.name)}', 'B')">B靓号</button>
-                    <button class="btn-danger ban-btn" onclick="banUserAndIP('${escapeHtml(user.name)}', '${user.registerIP || ''}')">封禁账号+IP</button>
-                    <button class="btn-danger ban-btn" onclick="banUserAndFingerprint('${escapeHtml(user.name)}')">封禁账号+指纹</button>
+                    <button class="btn-danger ban-btn" onclick="banUserAndIP('${escapeHtml(user.name)}', '${user.registerIP || ''}', '${user.fingerprintId || ''}')">封禁账号+IP+指纹</button>
                 </div>
             </div>
         `).join('');
@@ -819,20 +969,31 @@ async function renderAdminPanel() {
     } catch(e) { console.error(e); }
 }
 
-window.unbanFingerprint = async (fp) => {
-    if (currentRole !== 'owner') return;
-    await fetch('/api/fingerprint/unban', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fingerprint: fp }) });
-    showToast("指纹已解封", false);
-    renderAdminPanel();
+// 指纹封禁函数
+window.banFingerprint = async (fingerprintId, username) => {
+    if (!confirm(`确定要封禁指纹 ${fingerprintId.substring(0, 16)}... 吗？${username ? `这将同时封禁关联用户 ${username}` : ''}`)) return;
+    const res = await fetch('/api/admin/banFingerprint', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fingerprintId, username })
+    });
+    const data = await res.json();
+    if (data.success) {
+        showToast(`已封禁指纹并${username ? '封禁用户 ' + username : ''}`, false);
+        renderAdminPanel();
+    } else {
+        showToast('封禁失败', true);
+    }
 };
 
-window.banUserAndFingerprint = async (username) => {
-    if (currentRole !== 'owner') return;
-    await fetch('/api/admin/banUserAndFingerprint', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, fingerprint: deviceFingerprint })
+window.unbanFingerprint = async (fingerprintId) => {
+    if (!confirm(`确定要解封指纹 ${fingerprintId.substring(0, 16)}... 吗？`)) return;
+    await fetch('/api/admin/unbanFingerprint', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fingerprintId })
     });
-    showToast(`已封禁用户 ${username} + 当前设备指纹`, false);
+    showToast(`已解封指纹`, false);
     renderAdminPanel();
 };
 
@@ -849,16 +1010,16 @@ window.unbanIP = async (ip) => {
     renderAdminPanel();
 };
 
-window.banUserAndIP = async (username, ip) => {
-    if (!confirm(`确定要封禁用户 "${username}" 及其 IP "${ip}" 吗？`)) return;
+window.banUserAndIP = async (username, ip, fingerprintId) => {
+    if (!confirm(`确定要封禁用户 "${username}" 及其 IP "${ip}"${fingerprintId ? ' 和指纹设备' : ''} 吗？`)) return;
     const res = await fetch('/api/admin/banUserAndIP', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, ip })
+        body: JSON.stringify({ username, ip, fingerprintId })
     });
     const data = await res.json();
     if (data.success) {
-        showToast(`已封禁用户 ${username} 及其 IP`, false);
+        showToast(`已封禁用户 ${username} 及其 IP${fingerprintId ? ' 和指纹设备' : ''}`, false);
         renderAdminPanel();
     } else {
         showToast('封禁失败', true);
@@ -970,7 +1131,7 @@ function startAutoRefresh() {
 }
 
 const sidebarEl = document.getElementById('sidebar'), overlay = document.getElementById('sidebarOverlay');
-document.getElementById('menuToggle').onclick = (e) => { e.stopPropagation(); sidebarEl.classList.toggle('open'); overlay.classList.toggle('active'); };
+document.getElementById('menuToggle').onclick = () => { sidebarEl.classList.add('open'); overlay.classList.add('active'); };
 function closeSidebar() { sidebarEl.classList.remove('open'); overlay.classList.remove('active'); }
 overlay.onclick = closeSidebar;
 document.querySelectorAll('.sidebar-link').forEach(link => { link.addEventListener('click', (e) => { let pg = e.currentTarget.dataset.page; if (pg) switchPage(pg); }); });
@@ -986,7 +1147,7 @@ window.deleteChatMsg = deleteChatMsg;
 window.banIP = banIP;
 window.unbanIP = unbanIP;
 window.banUserAndIP = banUserAndIP;
-window.banUserAndFingerprint = banUserAndFingerprint;
+window.banFingerprint = banFingerprint;
 window.unbanFingerprint = unbanFingerprint;
 
 document.getElementById('sendChatBtn')?.addEventListener('click', sendChat);
@@ -1023,14 +1184,9 @@ document.getElementById('doRegisterBtn')?.addEventListener('click', async () => 
     }
 });
 
-// ==================== 初始化指纹系统 ====================
-(async function initFingerprint() {
-    deviceFingerprint = await generateFingerprint();
-    document.getElementById('fingerprintDisplay').innerHTML = `指纹: ${deviceFingerprint.substring(0, 12)}...`;
-    
-    const allowed = await checkFingerprintBan();
-    if (!allowed) return;
-    
+// 初始化
+async function initialize() {
+    await initFingerprint();
     checkServerStatus();
     updateSidebarUI();
     renderGames();
@@ -1038,9 +1194,13 @@ document.getElementById('doRegisterBtn')?.addEventListener('click', async () => 
     renderWhitelist();
     initGlobalMute();
     startAutoRefresh();
-})();
+}
+
+initialize();
+
 </script>
 
+<!-- ==================== 反调试保护 ==================== -->
 <script>
 (function() {
     'use strict';
@@ -1053,7 +1213,7 @@ document.getElementById('doRegisterBtn')?.addEventListener('click', async () => 
         isLocked = true;
         const warning = document.createElement('div');
         warning.style.cssText = 'position:fixed;top:0;left:0;width:100%;background:#ef4444;color:white;padding:10px;text-align:center;z-index:99999';
-        warning.innerHTML = '检测到开发者工具，部分功能可能受限';
+        warning.innerHTML = '⚠️ 检测到开发者工具，部分功能可能受限 ⚠️';
         document.body.appendChild(warning);
         setTimeout(() => warning.remove(), 3000);
     }
