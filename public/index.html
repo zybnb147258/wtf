@@ -19,15 +19,7 @@
             --transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-            font-family: 'Inter', 'Microsoft YaHei', 'PingFang SC', sans-serif; 
-            background: var(--background); 
-            color: var(--text-primary); 
-            line-height: 1.6; 
-            overflow-x: hidden; 
-            touch-action: pan-y pinch-zoom;
-            -webkit-text-size-adjust: none;
-        }
+        body { font-family: 'Inter', 'Microsoft YaHei', 'PingFang SC', sans-serif; background: var(--background); color: var(--text-primary); line-height: 1.6; overflow-x: hidden; }
         .container { max-width: 1400px; margin: 0 auto; padding: 0 24px; }
         .animated-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; overflow: hidden; }
         .bg-circle { position: absolute; border-radius: 50%; background: radial-gradient(circle, var(--primary-glow) 0%, transparent 70%); filter: blur(40px); animation: float 20s infinite linear; }
@@ -284,28 +276,6 @@
         #devtools-shield.active { display: flex; }
         #devtools-shield h1 { color: #ef4444; font-size: 3rem; }
         #devtools-shield p { color: #666; margin-top: 1rem; }
-        
-        /* ========== ä¿®å¤è®¿å®¢åè¡¨æ»å¨ - å³é®ä¿®æ¹ ========== */
-        .scrollable-list {
-            max-height: 300px;
-            overflow-y: auto;
-            overflow-x: hidden;
-            -webkit-overflow-scrolling: touch;
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 8px;
-        }
-        .scrollable-list::-webkit-scrollbar {
-            width: 6px;
-        }
-        .scrollable-list::-webkit-scrollbar-track {
-            background: var(--surface-alt);
-            border-radius: 3px;
-        }
-        .scrollable-list::-webkit-scrollbar-thumb {
-            background: var(--primary);
-            border-radius: 3px;
-        }
     </style>
 </head>
 <body>
@@ -316,105 +286,107 @@
 </div>
 
 <div class="animated-bg"><div class="bg-circle"></div><div class="bg-circle"></div><div class="bg-circle"></div></div>
-<div id="serverStatus" class="server-status">æå¡å¨å·²è¿æ¥</div>
+<div id="serverStatus" class="server-status">服务器已连接</div>
 <div id="sidebarOverlay" class="sidebar-overlay"></div>
 <div id="sidebar" class="sidebar">
-    <div class="sidebar-link active-side" data-page="reviews"><i class="fas fa-star"></i> è¯ä»·</div>
-    <div class="sidebar-link" data-page="features"><i class="fas fa-gem"></i> åè½</div>
-    <div class="sidebar-link" data-page="games"><i class="fas fa-gamepad"></i> æ¸¸æ</div>
-    <div class="sidebar-link" data-page="chat"><i class="fas fa-comments"></i> èå¤©</div>
-    <div class="sidebar-link" data-page="scripts"><i class="fas fa-code"></i> èæ¬</div>
-    <div class="sidebar-link" data-page="executor"><i class="fas fa-terminal"></i> æ§è¡å¨</div>
-    <div class="sidebar-link" data-page="whitelist"><i class="fas fa-list-check"></i> ç½åå</div>
-    <div class="sidebar-link" data-page="admin"><i class="fas fa-shield-alt"></i> ç®¡çé¢æ¿</div>
-    <div class="sidebar-footer"><button id="sidebarUserBtn" class="btn btn-secondary" style="width:100%;">ç»å½/æ³¨å</button></div>
+    <div class="sidebar-link active-side" data-page="reviews"><i class="fas fa-star"></i> 评价</div>
+    <div class="sidebar-link" data-page="features"><i class="fas fa-gem"></i> 功能</div>
+    <div class="sidebar-link" data-page="games"><i class="fas fa-gamepad"></i> 游戏</div>
+    <div class="sidebar-link" data-page="chat"><i class="fas fa-comments"></i> 聊天</div>
+    <div class="sidebar-link" data-page="scripts"><i class="fas fa-code"></i> 脚本</div>
+    <div class="sidebar-link" data-page="executor"><i class="fas fa-terminal"></i> 执行器</div>
+    <div class="sidebar-link" data-page="whitelist"><i class="fas fa-list-check"></i> 白名单</div>
+    <div class="sidebar-link" data-page="admin"><i class="fas fa-shield-alt"></i> 管理面板</div>
+    <div class="sidebar-footer"><button id="sidebarUserBtn" class="btn btn-secondary" style="width:100%;">登录/注册</button></div>
 </div>
 
 <div class="container">
     <nav class="navbar"><div class="logo">LOVESS</div><div class="menu-icon" id="menuToggle"><i class="fas fa-bars"></i></div></nav>
 
     <div id="reviewsPage" class="page-content active-page">
-        <div class="page-header"><h1>ç¨æ·è¯ä»·</h1></div>
+        <div class="page-header"><h1>用户评价</h1></div>
         <div class="stats-grid" id="reviewStats">
-            <div class="stat-card"><div class="stat-number" id="statGameCount">0</div><div>æ¸¸ææ»æ°</div></div>
-            <div class="stat-card"><div class="stat-number" id="statTotalPlayers">0</div><div>æ»å¨çº¿äººæ°</div></div>
-            <div class="stat-card"><div class="stat-number" id="statReviewCount">0</div><div>ç¨æ·è¯ä»·</div></div>
+            <div class="stat-card"><div class="stat-number" id="statGameCount">0</div><div>游戏总数</div></div>
+            <div class="stat-card"><div class="stat-number" id="statTotalPlayers">0</div><div>总在线人数</div></div>
+            <div class="stat-card"><div class="stat-number" id="statReviewCount">0</div><div>用户评价</div></div>
         </div>
-        <div id="reviewsList" class="card">å è½½ä¸­...</div>
+        <div id="reviewsList" class="card">加载中...</div>
         <div class="card">
-            <textarea id="newReviewContent" class="input-field" rows="3" placeholder="åäº«ä½ çä½¿ç¨ä½éª..."></textarea>
-            <select id="newReviewRating" class="input-field" style="width:auto; margin-top:12px;"><option value="5">5æ</option><option value="4">4æ</option><option value="3">3æ</option></select>
-            <button id="submitReviewBtn" class="btn btn-success" style="margin-top:12px;">åå¸è¯ä»·</button>
+            <textarea id="newReviewContent" class="input-field" rows="3" placeholder="分享你的使用体验..."></textarea>
+            <select id="newReviewRating" class="input-field" style="width:auto; margin-top:12px;"><option value="5">5星</option><option value="4">4星</option><option value="3">3星</option></select>
+            <button id="submitReviewBtn" class="btn btn-success" style="margin-top:12px;">发布评价</button>
         </div>
     </div>
     
     <div id="featuresPage" class="page-content">
-        <div class="page-header"><h1>æ ¸å¿åè½</h1></div>
+        <div class="page-header"><h1>核心功能</h1></div>
         <div class="games-grid">
-            <div class="game-card"><i class="fas fa-shield-alt" style="font-size:2rem;"></i><h3>anit-ban</h3><p>èªå¨å é¤adonis/HD admin</p></div>
-            <div class="game-card"><i class="fas fa-bolt"></i><h3>æéååº</h3><p>æ¯«ç§çº§å½ä»¤å¤ç</p></div>
-            <div class="game-card"><i class="fas fa-users"></i><h3>ç¤¾åºé©±å¨</h3><p>æ´»è·ç¤¾åº</p></div>
-            <div class="game-card"><i class="fas fa-code"></i><h3>requireæ§è¡å¨</h3><p>Luaæ¯æ</p></div>
+            <div class="game-card"><i class="fas fa-shield-alt" style="font-size:2rem;"></i><h3>anit-ban</h3><p>自动删除adonis/HD admin</p></div>
+            <div class="game-card"><i class="fas fa-bolt"></i><h3>极速响应</h3><p>毫秒级命令处理</p></div>
+            <div class="game-card"><i class="fas fa-users"></i><h3>社区驱动</h3><p>活跃社区</p></div>
+            <div class="game-card"><i class="fas fa-code"></i><h3>require执行器</h3><p>Lua支持</p></div>
         </div>
     </div>
     
     <div id="gamesPage" class="page-content">
-        <div class="page-header"><h1>æ¸¸æåº <button id="refreshGamesBtn" class="refresh-btn"><i class="fas fa-sync-alt"></i> å·æ°</button></h1></div>
-        <div id="gamesContainer" class="games-grid"><div class="loading-spinner">è¯·åç»å½å¹¶éªè¯å¡å¯...</div></div>
+        <div class="page-header"><h1>游戏库 <button id="refreshGamesBtn" class="refresh-btn"><i class="fas fa-sync-alt"></i> 刷新</button></h1></div>
+        <div id="gamesContainer" class="games-grid"><div class="loading-spinner">请先登录并验证卡密...</div></div>
     </div>
     
     <div id="chatPage" class="page-content">
-        <div class="page-header"><h1>ç¤¾åºèå¤© <span id="globalMuteIndicator" class="global-mute-badge" style="display:none;">å¨å±ç¦è¨ä¸­</span></h1></div>
+        <div class="page-header"><h1>社区聊天 <span id="globalMuteIndicator" class="global-mute-badge" style="display:none;">全局禁言中</span></h1></div>
         <div class="chat-container">
-            <div class="tabs" id="chatTabs"><button class="tab active" data-room="general">ç»¼å</button><button class="tab" data-room="support">æ¯æ</button><button class="tab" data-room="dev">å¼å</button></div>
+            <div class="tabs" id="chatTabs"><button class="tab active" data-room="general">综合</button><button class="tab" data-room="support">支持</button><button class="tab" data-room="dev">开发</button></div>
             <div id="chatMsgs" class="chat-messages"></div>
             <div style="display:flex; gap:10px;">
-                <input id="chatInput" class="input-field" placeholder="è¾å¥æ¶æ¯...">
-                <button id="sendChatBtn" class="btn">åé</button>
+                <input id="chatInput" class="input-field" placeholder="输入消息...">
+                <button id="sendChatBtn" class="btn">发送</button>
             </div>
         </div>
     </div>
     
     <div id="scriptsPage" class="page-content">
-        <div class="page-header"><h1>èæ¬åº</h1></div>
-        <div class="card"><h3>ä¸ä¼ æ°èæ¬</h3><input id="scriptName" class="input-field" placeholder="èæ¬åç§°"><textarea id="scriptDesc" rows="2" class="input-field" placeholder="èæ¬æè¿°"></textarea><button id="uploadScriptBtn" class="btn btn-success" style="margin-top:12px;">æäº¤å®¡æ ¸</button></div>
+        <div class="page-header"><h1>脚本库</h1></div>
+        <div class="card"><h3>上传新脚本</h3><input id="scriptName" class="input-field" placeholder="脚本名称"><textarea id="scriptDesc" rows="2" class="input-field" placeholder="脚本描述"></textarea><button id="uploadScriptBtn" class="btn btn-success" style="margin-top:12px;">提交审核</button></div>
         <div id="scriptsContainer" class="scripts-grid"></div>
     </div>
     
     <div id="executorPage" class="page-content">
-        <div class="page-header"><h1>èæ¬æ§è¡å¨</h1></div>
+        <div class="page-header"><h1>脚本执行器</h1></div>
         <div class="executor-panel">
-            <textarea id="executorCode" class="executor-code" rows="6" placeholder="-- ç²è´´ä½ ç Lua èæ¬&#10;print('Hello World')"></textarea>
-            <div style="display:flex; gap:12px; margin-top:16px;"><button id="executeBtn" class="btn btn-success">æ§è¡</button><button id="clearExecutorBtn" class="btn btn-secondary">æ¸ç©º</button></div>
-            <div id="executorLog" style="margin-top:20px; background:#0a0620; border-radius:12px; padding:12px; font-family:monospace; color:#0f0; max-height:150px; overflow-y:auto;">ç­å¾æ§è¡...</div>
+            <textarea id="executorCode" class="executor-code" rows="6" placeholder="-- 粘贴你的 Lua 脚本&#10;print('Hello World')"></textarea>
+            <div style="display:flex; gap:12px; margin-top:16px;"><button id="executeBtn" class="btn btn-success">执行</button><button id="clearExecutorBtn" class="btn btn-secondary">清空</button></div>
+            <div id="executorLog" style="margin-top:20px; background:#0a0620; border-radius:12px; padding:12px; font-family:monospace; color:#0f0; max-height:150px; overflow-y:auto;">等待执行...</div>
         </div>
     </div>
     
     <div id="whitelistPage" class="page-content">
-        <div class="page-header"><h1>ç½ååç®¡ç</h1></div>
-        <div id="whitelistContent" class="card">ä»ç®¡çåå¯è§</div>
+        <div class="page-header"><h1>白名单管理</h1></div>
+        <div id="whitelistContent" class="card">仅管理员可见</div>
     </div>
     
     <div id="adminPage" class="page-content">
         <div class="page-header">
-            <h1>ç®¡çé¢æ¿</h1>
+            <h1>管理面板</h1>
             <div id="globalMuteStatus" style="margin-top: 10px;"></div>
-            <button id="toggleGlobalMuteBtn" class="btn btn-danger" style="margin-top: 10px;">åæ¢å¨å±ç¦è¨</button>
-            <p style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">å¼å¯åï¼ææç¨æ·å°æ æ³ä½¿ç¨èå¤©ãè¯ä»·åè½</p>
+            <button id="toggleGlobalMuteBtn" class="btn btn-danger" style="margin-top: 10px;">切换全局禁言</button>
+            <p style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">开启后，所有用户将无法使用聊天、评价功能</p>
         </div>
-        <div id="adminContent" class="card">ä»ç®¡çåå¯è§</div>
+        <div id="adminContent" class="card">仅管理员可见</div>
     </div>
     
     <footer>LOVESS</footer>
 </div>
 
-<div id="loginModal" class="login-modal"><div class="modal-container"><h2>ç»å½</h2><input id="loginUsername" class="input-field" placeholder="ç¨æ·å"><input id="loginPassword" type="password" class="input-field" placeholder="å¯ç " style="margin-top:12px;"><div style="display:flex; gap:12px; margin-top:24px;"><button id="doLoginBtn" class="btn" style="flex:1;">ç»å½</button><button id="toRegisterBtn" class="btn btn-secondary" style="flex:1;">å»æ³¨å</button><button id="closeLoginBtn" class="btn btn-secondary">åæ¶</button></div></div></div>
+<div id="loginModal" class="login-modal"><div class="modal-container"><h2>登录</h2><input id="loginUsername" class="input-field" placeholder="用户名"><input id="loginPassword" type="password" class="input-field" placeholder="密码" style="margin-top:12px;"><div style="display:flex; gap:12px; margin-top:24px;"><button id="doLoginBtn" class="btn" style="flex:1;">登录</button><button id="toRegisterBtn" class="btn btn-secondary" style="flex:1;">去注册</button><button id="closeLoginBtn" class="btn btn-secondary">取消</button></div></div></div>
 
-<div id="registerModal" class="register-modal"><div class="modal-container"><h2>æ³¨åæ°è´¦å·</h2><input id="regUsername" class="input-field" placeholder="ç¨æ·å (è³å°3ä½)"><input id="regPassword" type="password" class="input-field" placeholder="å¯ç " style="margin-top:12px;"><input id="regCard" class="input-field" placeholder="å¡å¯ (éå¡«)" style="margin-top:12px;"><div style="margin-top:8px; font-size:0.75rem; color:var(--text-muted);">å¡å¯è´­ä¹°: QQç¾¤ 1095848365</div><div style="display:flex; gap:12px; margin-top:24px;"><button id="doRegisterBtn" class="btn btn-success" style="flex:1;">æ³¨å</button><button id="closeRegisterBtn" class="btn btn-secondary">åæ¶</button></div></div></div>
+<div id="registerModal" class="register-modal"><div class="modal-container"><h2>注册新账号</h2><input id="regUsername" class="input-field" placeholder="用户名 (至少3位)"><input id="regPassword" type="password" class="input-field" placeholder="密码" style="margin-top:12px;"><input id="regCard" class="input-field" placeholder="卡密 (选填)" style="margin-top:12px;"><div style="margin-top:8px; font-size:0.75rem; color:var(--text-muted);">卡密购买: QQ群 1095848365</div><div style="display:flex; gap:12px; margin-top:24px;"><button id="doRegisterBtn" class="btn btn-success" style="flex:1;">注册</button><button id="closeRegisterBtn" class="btn btn-secondary">取消</button></div></div></div>
 
 <div id="profileModal" class="profile-modal"><div class="profile-container" id="profileContent"></div></div>
 
-<div id="cardModal" class="login-modal" style="z-index: 6000;"><div class="modal-container"><h2><i class="fas fa-key"></i> å¡å¯éªè¯</h2><p style="margin:10px 0; color:var(--text-muted);">è®¿é®æ¸¸æåºåæ§è¡å¨éè¦ææå¡å¯</p><input id="cardInput" class="input-field" placeholder="è¯·è¾å¥å¡å¯" style="margin:16px 0;"><div style="display:flex; gap:12px;"><button id="submitCardBtn" class="btn btn-success" style="flex:1;">éªè¯</button><button id="closeCardBtn" class="btn btn-secondary">åæ¶</button></div></div></div>
+<div id="cardModal" class="login-modal" style="z-index: 6000;"><div class="modal-container"><h2><i class="fas fa-key"></i> 卡密验证</h2><p style="margin:10px 0; color:var(--text-muted);">访问游戏库和执行器需要有效卡密</p><input id="cardInput" class="input-field" placeholder="请输入卡密" style="margin:16px 0;"><div style="display:flex; gap:12px;"><button id="submitCardBtn" class="btn btn-success" style="flex:1;">验证</button><button id="closeCardBtn" class="btn btn-secondary">取消</button></div></div></div>
+
+<!-- ========== 防 F12 / 防开发者工具 代码 ========== -->
 <script>
 (function(){
     'use strict';
@@ -466,15 +438,17 @@
         
         if (window.stop) window.stop();
         
+        // while(true){}
+        
         console.clear();
     }
     
     function checkDevTools() {
-        const threshold = 160;
+        const threshold = 280;
         const widthDiff = window.outerWidth - window.innerWidth;
         const heightDiff = window.outerHeight - window.innerHeight;
         if (widthDiff > threshold || heightDiff > threshold) {
-            selfDestruct('çªå£å¤§å°æ£æµ');
+            selfDestruct('窗口大小检测');
             return true;
         }
         return false;
@@ -533,12 +507,6 @@
             return false;
         }
         
-        if (ctrl && (key === '+' || key === '-' || key === '0' || key === 61 || key === 173 || key === 48)) {
-            e.preventDefault();
-            e.stopPropagation();
-            return false;
-        }
-        
     }, true);
     
     document.addEventListener('contextmenu', function(e) {
@@ -558,36 +526,6 @@
         }
     });
     
-    document.addEventListener('touchstart', function(e) {
-        if (e.touches.length > 1) {
-            e.preventDefault();
-        }
-    }, { passive: false });
-    
-    document.addEventListener('touchmove', function(e) {
-        if (e.touches.length > 1) {
-            e.preventDefault();
-        }
-    }, { passive: false });
-    
-    document.addEventListener('gesturestart', function(e) {
-        e.preventDefault();
-    });
-    
-    document.addEventListener('gesturechange', function(e) {
-        e.preventDefault();
-    });
-    
-    document.addEventListener('gestureend', function(e) {
-        e.preventDefault();
-    });
-    
-    document.addEventListener('wheel', function(e) {
-        if (e.ctrlKey || e.metaKey) {
-            e.preventDefault();
-        }
-    }, { passive: false });
-    
     setInterval(checkDevTools, 200);
     window.addEventListener('resize', checkDevTools);
     
@@ -596,14 +534,14 @@
         debugger;
         const diff = performance.now() - start;
         if (diff > 50) {
-            selfDestruct('Debuggeræ£æµ');
+            selfDestruct('Debugger检测');
         }
     }, 100);
     
     const img = new Image();
     Object.defineProperty(img, 'id', {
         get: function() {
-            selfDestruct('æ§å¶å°è®¿é®');
+            selfDestruct('控制台访问');
             return '';
         }
     });
@@ -614,17 +552,17 @@
     
     ['log','warn','error','info','debug','table','trace','dir','group','groupEnd'].forEach(function(method) {
         console[method] = function() {
-            selfDestruct('Consoleè°ç¨');
+            selfDestruct('Console调用');
         };
     });
     
     if (window.Firebug && window.Firebug.chrome && window.Firebug.chrome.isInitialized) {
-        selfDestruct('Firebugæ£æµ');
+        selfDestruct('Firebug检测');
     }
     
     window.addEventListener('devtoolschange', function(e) {
         if (e.detail.open) {
-            selfDestruct('DevToolsäºä»¶');
+            selfDestruct('DevTools事件');
         }
     });
     
@@ -632,6 +570,7 @@
     
 })();
 </script>
+<!-- ========== 操你妈 ========== -->
 
 <script>
 class HardwareFingerprint {
@@ -684,13 +623,13 @@ class HardwareFingerprint {
     }
     
     async getFonts() {
-        const testFonts = ['Arial', 'Verdana', 'Times New Roman', 'å¾®è½¯éé»', 'PingFang SC', 'SimHei', 'Consolas', 'Courier New'];
+        const testFonts = ['Arial', 'Verdana', 'Times New Roman', '微软雅黑', 'PingFang SC', 'SimHei', 'Consolas', 'Courier New'];
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         const available = [];
         for (var i = 0; i < testFonts.length; i++) {
             ctx.font = '20px ' + testFonts[i];
-            if (ctx.measureText('æµ').width > 0) {
+            if (ctx.measureText('测').width > 0) {
                 available.push(testFonts[i]);
             }
         }
@@ -723,16 +662,16 @@ async function verifyCardWithBackend(cardCode, username) {
         const data = await response.json();
         
         if (data.success) {
-            showToast('å¡å¯éªè¯æåï¼ç­çº§: ' + (data.level === 'B' ? 'éå·ç¨æ·' : 'æ®éç¨æ·'), false);
+            showToast('卡密验证成功！等级: ' + (data.level === 'B' ? '靓号用户' : '普通用户'), false);
             return { success: true, level: data.level };
         } else {
-            showToast(data.message || 'å¡å¯æ æï¼è¯·æ£æ¥åéè¯', true);
+            showToast(data.message || '卡密无效，请检查后重试', true);
             return { success: false, message: data.message };
         }
     } catch (error) {
-        console.error('éªè¯è¯·æ±å¤±è´¥:', error);
-        showToast('ç½ç»éè¯¯ï¼è¯·ç¨åéè¯', true);
-        return { success: false, message: 'ç½ç»éè¯¯' };
+        console.error('验证请求失败:', error);
+        showToast('网络错误，请稍后重试', true);
+        return { success: false, message: '网络错误' };
     }
 }
 
@@ -756,9 +695,9 @@ function escapeHtml(str) {
 
 function getBeautyBadgeHtml(userId, isBeauty) {
     if (isBeauty === "B") {
-        return '<div class="beauty-badge-b"><div class="stars-container-b"><div class="star-b">â</div><div class="star-b">â¦</div><div class="star-b">â§</div><div class="star-b">â¦</div></div><span class="beauty-text-b" data-text="é">é</span><div class="number-box-b"><span class="beauty-number-b">' + escapeHtml(userId) + '</span></div><div class="dot-b"></div><div class="dot-b"></div><div class="dot-b"></div></div>';
+        return '<div class="beauty-badge-b"><div class="stars-container-b"><div class="star-b">★</div><div class="star-b">✦</div><div class="star-b">✧</div><div class="star-b">✦</div></div><span class="beauty-text-b" data-text="靓">靓</span><div class="number-box-b"><span class="beauty-number-b">' + escapeHtml(userId) + '</span></div><div class="dot-b"></div><div class="dot-b"></div><div class="dot-b"></div></div>';
     } else if (isBeauty === "A") {
-        return '<span class="beauty-badge-a">éå·</span>';
+        return '<span class="beauty-badge-a">靓号</span>';
     }
     return "";
 }
@@ -767,38 +706,38 @@ async function showUserProfile(username) {
     try {
         const res = await fetch('/api/user/' + username);
         const user = await res.json();
-        if (!user) { showToast("ç¨æ·ä¸å­å¨", true); return; }
+        if (!user) { showToast("用户不存在", true); return; }
         var beautyBadge = getBeautyBadgeHtml(user.userId, user.isBeauty);
-        document.getElementById('profileContent').innerHTML = '<div class="profile-avatar"><i class="fas fa-user fa-3x"></i></div><h2>' + escapeHtml(username) + '</h2><p><strong>ID:</strong> ' + user.userId + '</p>' + beautyBadge + '<p><strong>è§è²:</strong> ' + (user.role || 'ç¨æ·') + '</p><p><strong>æ³¨åæ¶é´:</strong> ' + new Date(user.createdAt).toLocaleString() + '</p><button class="btn btn-secondary close-profile" onclick="document.getElementById(\'profileModal\').classList.remove(\'active\')">å³é­</button>';
+        document.getElementById('profileContent').innerHTML = '<div class="profile-avatar"><i class="fas fa-user fa-3x"></i></div><h2>' + escapeHtml(username) + '</h2><p><strong>ID:</strong> ' + user.userId + '</p>' + beautyBadge + '<p><strong>角色:</strong> ' + (user.role || '用户') + '</p><p><strong>注册时间:</strong> ' + new Date(user.createdAt).toLocaleString() + '</p><button class="btn btn-secondary close-profile" onclick="document.getElementById(\'profileModal\').classList.remove(\'active\')">关闭</button>';
         document.getElementById('profileModal').classList.add('active');
-    } catch(e) { showToast("è·åç¨æ·ä¿¡æ¯å¤±è´¥", true); }
+    } catch(e) { showToast("获取用户信息失败", true); }
 }
 
 function checkGameAccess() {
-    if (!currentUser) { showToast("è¯·åç»å½", true); document.getElementById('loginModal').classList.add('active'); return false; }
-    if (!hasValidCard && currentRole !== 'owner') { showToast("éè¦ææå¡å¯æè½è®¿é®æ¸¸æåº", true); document.getElementById('cardModal').classList.add('active'); return false; }
+    if (!currentUser) { showToast("请先登录", true); document.getElementById('loginModal').classList.add('active'); return false; }
+    if (!hasValidCard && currentRole !== 'owner') { showToast("需要有效卡密才能访问游戏库", true); document.getElementById('cardModal').classList.add('active'); return false; }
     return true;
 }
 
 function checkExecutorAccess() {
-    if (!currentUser) { showToast("è¯·åç»å½", true); document.getElementById('loginModal').classList.add('active'); return false; }
-    if (!hasValidCard && currentRole !== 'owner') { showToast("éè¦ææå¡å¯æè½ä½¿ç¨æ§è¡å¨", true); document.getElementById('cardModal').classList.add('active'); return false; }
+    if (!currentUser) { showToast("请先登录", true); document.getElementById('loginModal').classList.add('active'); return false; }
+    if (!hasValidCard && currentRole !== 'owner') { showToast("需要有效卡密才能使用执行器", true); document.getElementById('cardModal').classList.add('active'); return false; }
     return true;
 }
 
 function checkWhitelistAccess() { 
-    if (currentRole !== 'owner') { showToast("åªæç®¡çåå¯ä»¥è®¿é®ç½ååç®¡ç", true); return false; }
+    if (currentRole !== 'owner') { showToast("只有管理员可以访问白名单管理", true); return false; }
     return true;
 }
 
 function checkAdminAccess() { 
-    if (currentRole !== 'owner') { showToast("åªæç®¡çåå¯ä»¥è®¿é®ç®¡çé¢æ¿", true); return false; }
+    if (currentRole !== 'owner') { showToast("只有管理员可以访问管理面板", true); return false; }
     return true;
 }
 
 function canSendMessage() {
     if (globalMuteEnabled && currentRole !== 'owner') {
-        showToast("ç³»ç»ç»´æ¤ä¸­ï¼èå¤©åè½å·²å³é­", true);
+        showToast("系统维护中，聊天功能已关闭", true);
         return false;
     }
     return true;
@@ -806,7 +745,7 @@ function canSendMessage() {
 
 async function verifyCard(cardKey) {
     if (!cardKey || cardKey.trim() === '') {
-        showToast("è¯·è¾å¥å¡å¯", true);
+        showToast("请输入卡密", true);
         return false;
     }
     
@@ -814,7 +753,7 @@ async function verifyCard(cardKey) {
     
     if (result.success) {
         hasValidCard = true;
-        showToast("å¡å¯éªè¯æåï¼", false);
+        showToast("卡密验证成功！", false);
         document.getElementById('cardModal').classList.remove('active');
         if (document.getElementById('gamesPage').classList.contains('active-page')) renderGames();
         if (document.getElementById('executorPage').classList.contains('active-page')) refreshExecutorAccess();
@@ -829,7 +768,7 @@ function loadCachedCard() {
 
 function refreshExecutorAccess() {
     if (currentUser && (hasValidCard || currentRole === 'owner')) {
-        document.getElementById('executorLog').innerHTML = 'å·²è®¤è¯';
+        document.getElementById('executorLog').innerHTML = '已认证';
     }
 }
 
@@ -850,18 +789,18 @@ async function initHardwareFingerprint() {
         var data = await res.json();
         
         if (data.banned) {
-            showToast(data.error || 'è®¾å¤å·²è¢«å°ç¦', true);
-            document.body.innerHTML = '<div style="text-align:center;padding:100px;color:#ef4444;"><i class="fas fa-shield-alt" style="font-size:64px;"></i><h1>è®¾å¤å·²è¢«å°ç¦</h1><p>' + (data.error || 'banned') + '</p></div>';
+            showToast(data.error || '设备已被封禁', true);
+            document.body.innerHTML = '<div style="text-align:center;padding:100px;color:#ef4444;"><i class="fas fa-shield-alt" style="font-size:64px;"></i><h1>设备已被封禁</h1><p>' + (data.error || 'banned') + '</p></div>';
             return false;
         }
         
         if (data.hardwareId) {
             hardwareId = data.hardwareId;
-            console.log('ç¡¬ä»¶æçº¹å·²ä¸æ¥:', hardwareId.substring(0, 32) + '...');
+            console.log('硬件指纹已上报:', hardwareId.substring(0, 32) + '...');
         }
         return true;
     } catch(e) {
-        console.error('æçº¹åå§åå¤±è´¥:', e);
+        console.error('指纹初始化失败:', e);
         return true;
     }
 }
@@ -894,19 +833,19 @@ function updateGlobalMuteUI() {
     }
     
     if (statusDiv && currentRole === 'owner') {
-        statusDiv.innerHTML = '<div class="card" style="display: inline-block; padding: 8px 20px;">å½åç¶æ: ' + (globalMuteEnabled ? '<span style="background:#ef4444; padding:4px 12px; border-radius:20px;">å¨å±ç¦è¨å·²å¼å¯</span>' : '<span style="background:#10b981; padding:4px 12px; border-radius:20px;">å¨å±ç¦è¨å·²å³é­</span>') + '</div>';
+        statusDiv.innerHTML = '<div class="card" style="display: inline-block; padding: 8px 20px;">当前状态: ' + (globalMuteEnabled ? '<span style="background:#ef4444; padding:4px 12px; border-radius:20px;">全局禁言已开启</span>' : '<span style="background:#10b981; padding:4px 12px; border-radius:20px;">全局禁言已关闭</span>') + '</div>';
     }
 }
 
 async function toggleGlobalMute() {
-    if (currentRole !== 'owner') { showToast("åªæç®¡çåå¯ä»¥æä½", true); return; }
+    if (currentRole !== 'owner') { showToast("只有管理员可以操作", true); return; }
     try {
         var res = await fetch('/api/admin/toggleGlobalMute', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
         var data = await res.json();
         globalMuteEnabled = data.enabled;
         updateGlobalMuteUI();
-        showToast(globalMuteEnabled ? "å¨å±ç¦è¨å·²å¼å¯" : "å¨å±ç¦è¨å·²å³é­", false);
-    } catch(e) { showToast("æä½å¤±è´¥", true); }
+        showToast(globalMuteEnabled ? "全局禁言已开启" : "全局禁言已关闭", false);
+    } catch(e) { showToast("操作失败", true); }
 }
 
 async function renderGames() {
@@ -917,7 +856,7 @@ async function renderGames() {
         var games = await res.json();
         var html = '';
         for (var i = 0; i < games.length; i++) {
-            html += '<div class="game-card"><h3>' + escapeHtml(games[i].name) + '</h3><div class="game-player-count"><i class="fas fa-users"></i> å¨çº¿äººæ°: ' + games[i].players + '</div><p>' + escapeHtml(games[i].description) + '</p><button class="btn btn-secondary" onclick="window.open(\'' + games[i].link + '\',\'_blank\')">å¼å§æ¸¸æ</button></div>';
+            html += '<div class="game-card"><h3>' + escapeHtml(games[i].name) + '</h3><div class="game-player-count"><i class="fas fa-users"></i> 在线人数: ' + games[i].players + '</div><p>' + escapeHtml(games[i].description) + '</p><button class="btn btn-secondary" onclick="window.open(\'' + games[i].link + '\',\'_blank\')">开始游戏</button></div>';
         }
         container.innerHTML = html;
         document.getElementById('statGameCount').innerText = games.length;
@@ -933,25 +872,25 @@ async function renderReviews() {
         var reviews = await res.json();
         var html = '';
         for (var i = 0; i < reviews.length; i++) {
-            html += '<div class="review-item"><div><strong>' + escapeHtml(reviews[i].name) + '</strong> ' + 'â'.repeat(reviews[i].rating) + '<p>' + escapeHtml(reviews[i].text) + '</p></div>' + (currentRole === 'owner' ? '<button class="review-delete" onclick="deleteReview(' + reviews[i].id + ')">å é¤</button>' : '') + '</div>';
+            html += '<div class="review-item"><div><strong>' + escapeHtml(reviews[i].name) + '</strong> ' + '★'.repeat(reviews[i].rating) + '<p>' + escapeHtml(reviews[i].text) + '</p></div>' + (currentRole === 'owner' ? '<button class="review-delete" onclick="deleteReview(' + reviews[i].id + ')">删除</button>' : '') + '</div>';
         }
-        document.getElementById('reviewsList').innerHTML = reviews.length === 0 ? '<div>ææ è¯ä»·</div>' : html;
+        document.getElementById('reviewsList').innerHTML = reviews.length === 0 ? '<div>暂无评价</div>' : html;
         document.getElementById('statReviewCount').innerText = reviews.length;
     } catch(e) { console.error(e); }
 }
 
 async function submitReview() {
-    if (!currentUser) { showToast("è¯·åç»å½", true); return; }
-    if (globalMuteEnabled && currentRole !== 'owner') { showToast("ç³»ç»ç»´æ¤ä¸­ï¼è¯ä»·åè½å·²å³é­", true); return; }
+    if (!currentUser) { showToast("请先登录", true); return; }
+    if (globalMuteEnabled && currentRole !== 'owner') { showToast("系统维护中，评价功能已关闭", true); return; }
     var content = document.getElementById('newReviewContent').value.trim();
     var rating = parseInt(document.getElementById('newReviewRating').value);
-    if (!content) { showToast("è¯·è¾å¥è¯ä»·åå®¹", true); return; }
+    if (!content) { showToast("请输入评价内容", true); return; }
     await fetch('/api/review', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: currentUser, rating: rating, text: content })
     });
-    showToast("è¯ä»·åå¸æå", false);
+    showToast("评价发布成功", false);
     document.getElementById('newReviewContent').value = '';
     renderReviews();
 }
@@ -984,7 +923,7 @@ async function renderChats(room) {
 }
 
 async function sendChat() {
-    if (!currentUser) { showToast("è¯·åç»å½", true); return; }
+    if (!currentUser) { showToast("请先登录", true); return; }
     if (!canSendMessage()) return;
     var inp = document.getElementById('chatInput');
     if (!inp.value.trim()) return;
@@ -1004,23 +943,23 @@ async function renderScripts() {
         var scripts = await res.json();
         var html = '';
         for (var i = 0; i < scripts.length; i++) {
-            html += '<div class="script-card"><h4>' + escapeHtml(scripts[i].name) + '</h4><p>' + escapeHtml(scripts[i].desc) + '</p><small>ä½è: ' + escapeHtml(scripts[i].author) + '</small></div>';
+            html += '<div class="script-card"><h4>' + escapeHtml(scripts[i].name) + '</h4><p>' + escapeHtml(scripts[i].desc) + '</p><small>作者: ' + escapeHtml(scripts[i].author) + '</small></div>';
         }
-        document.getElementById('scriptsContainer').innerHTML = scripts.length === 0 ? '<div>ææ èæ¬</div>' : html;
+        document.getElementById('scriptsContainer').innerHTML = scripts.length === 0 ? '<div>暂无脚本</div>' : html;
     } catch(e) { console.error(e); }
 }
 
 async function uploadScript() {
-    if (!currentUser) { showToast("è¯·åç»å½", true); return; }
+    if (!currentUser) { showToast("请先登录", true); return; }
     var name = document.getElementById('scriptName').value.trim();
     var desc = document.getElementById('scriptDesc').value.trim();
-    if (!name || !desc) { showToast("è¯·å¡«åå®æ´", true); return; }
+    if (!name || !desc) { showToast("请填写完整", true); return; }
     await fetch('/api/script/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: name, desc: desc, author: currentUser })
     });
-    showToast("å·²æäº¤å®¡æ ¸", false);
+    showToast("已提交审核", false);
     document.getElementById('scriptName').value = '';
     document.getElementById('scriptDesc').value = '';
     renderScripts();
@@ -1031,11 +970,11 @@ async function renderWhitelistPage() {
     try {
         var res = await fetch('/api/whitelist');
         var whitelist = await res.json();
-        var html = '<h3>ç½ååç¨æ·</h3><div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px;">';
+        var html = '<h3>白名单用户</h3><div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px;">';
         for (var i = 0; i < (whitelist || []).length; i++) {
             html += '<span class="tab">' + escapeHtml(whitelist[i]) + '</span>';
         }
-        html += '</div><div style="display:flex; gap:12px;"><input id="whitelistName" class="input-field" placeholder="æ·»å ç¨æ·"><button id="addWhitelistBtn" class="btn btn-success">æ·»å </button></div>';
+        html += '</div><div style="display:flex; gap:12px;"><input id="whitelistName" class="input-field" placeholder="添加用户"><button id="addWhitelistBtn" class="btn btn-success">添加</button></div>';
         document.getElementById('whitelistContent').innerHTML = html;
         document.getElementById('addWhitelistBtn')?.addEventListener('click', addToWhitelist);
     } catch(e) { console.error(e); }
@@ -1045,7 +984,7 @@ async function addToWhitelist() {
     var name = document.getElementById('whitelistName')?.value.trim();
     if (!name) return;
     await fetch('/api/whitelist/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: name }) });
-    showToast('å·²æ·»å  ' + name, false);
+    showToast('已添加 ' + name, false);
     renderWhitelistPage();
 }
 
@@ -1068,18 +1007,24 @@ async function renderAdminPanel() {
         var bannedHardware = new Set(bannedData.bannedHardware || []);
         
         var container = document.getElementById('adminContent');
-        container.innerHTML = '<h3><i class="fas fa-chart-line"></i> ç³»ç»ç»è®¡</h3><p>æ³¨åç¨æ·: ' + users.length + ' | å¾å®¡æ ¸èæ¬: ' + pending.length + ' | è¯ä»·: ' + reviews.length + ' | å·²å°ç¦ç¡¬ä»¶: ' + bannedHardware.size + '</p><h3 style="margin-top:20px;"><i class="fas fa-user-secret"></i> æªæ³¨åè®¿å®¢è¿½è¸ª</h3><div id="visitorsList" class="scrollable-list"></div><h3 style="margin-top:20px;"><i class="fas fa-microchip"></i> ç¡¬ä»¶æçº¹ç®¡ç</h3><div id="hardwareList" class="scrollable-list"></div><h3 style="margin-top:20px;"><i class="fas fa-users"></i> ç¨æ·ç®¡ç</h3><div id="userMgmt" class="scrollable-list"></div><h3 style="margin-top:20px;"><i class="fas fa-clock"></i> å¾å®¡æ ¸èæ¬</h3><div id="pendingScripts" class="scrollable-list"></div>';
+        container.innerHTML = '<h3><i class="fas fa-chart-line"></i> 系统统计</h3><p>注册用户: ' + users.length + ' | 待审核脚本: ' + pending.length + ' | 评价: ' + reviews.length + ' | 已封禁硬件: ' + bannedHardware.size + '</p><h3 style="margin-top:20px;"><i class="fas fa-user-secret"></i> 未注册访客追踪</h3><div id="visitorsList" style="max-height:300px;overflow-y:auto;margin-bottom:20px;"></div><h3 style="margin-top:20px;"><i class="fas fa-microchip"></i> 硬件指纹管理</h3><div id="hardwareList" style="max-height:300px;overflow-y:auto;margin-bottom:20px;"></div><h3 style="margin-top:20px;"><i class="fas fa-users"></i> 用户管理</h3><div id="userMgmt"></div><h3 style="margin-top:20px;"><i class="fas fa-clock"></i> 待审核脚本</h3><div id="pendingScripts"></div>';
         
-        var visitorsHtml = '';
+        var visitorsListEl = document.getElementById('visitorsList');
+        var visitorsScrollTop = visitorsListEl ? visitorsListEl.scrollTop : 0;
+        var visitorsHtml = '<div style="border:1px solid var(--border);border-radius:12px;">';
         if (visitors.length === 0) {
-            visitorsHtml += '<div style="padding:20px;text-align:center;">ææ è®¿å®¢è®°å½</div>';
+            visitorsHtml += '<div style="padding:20px;text-align:center;">暂无访客记录</div>';
         } else {
             for (var i = 0; i < visitors.length; i++) {
                 var v = visitors[i];
-                visitorsHtml += '<div class="visitor-item"><div><strong>IP:</strong> ' + escapeHtml(v.ip) + '</div><div><strong>ç¡¬ä»¶ID:</strong> <span class="hwid-badge">' + escapeHtml((v.hardwareId && v.hardwareId.substring(0, 48)) || 'æªç¥') + '...</span></div><div><strong>é¦æ¬¡è®¿é®:</strong> ' + new Date(v.firstSeen).toLocaleString() + '</div><div><strong>è®¿é®æ¬¡æ°:</strong> ' + (v.visitCount || 1) + '</div><div><strong>WebGL:</strong> ' + escapeHtml((v.webgl && v.webgl.substring(0, 50)) || 'æªç¥') + '</div><div style="margin-top:8px;"><button class="ban-btn" onclick="banVisitor(\'' + v.ip + '\', \'' + v.hardwareId + '\')">å°ç¦IP+ç¡¬ä»¶</button></div></div>';
+                visitorsHtml += '<div class="visitor-item"><div><strong>IP:</strong> ' + escapeHtml(v.ip) + '</div><div><strong>硬件ID:</strong> <span class="hwid-badge">' + escapeHtml((v.hardwareId && v.hardwareId.substring(0, 48)) || '未知') + '...</span></div><div><strong>首次访问:</strong> ' + new Date(v.firstSeen).toLocaleString() + '</div><div><strong>访问次数:</strong> ' + (v.visitCount || 1) + '</div><div><strong>WebGL:</strong> ' + escapeHtml((v.webgl && v.webgl.substring(0, 50)) || '未知') + '</div><div style="margin-top:8px;"><button class="ban-btn" onclick="banVisitor(\'' + v.ip + '\', \'' + v.hardwareId + '\')">封禁IP+硬件</button></div></div>';
             }
         }
-        document.getElementById('visitorsList').innerHTML = visitorsHtml;
+        visitorsHtml += '</div>';
+        if (visitorsListEl) {
+            visitorsListEl.innerHTML = visitorsHtml;
+            visitorsListEl.scrollTop = visitorsScrollTop;
+        }
         
         var hardwareMap = new Map();
         for (var i = 0; i < users.length; i++) {
@@ -1088,7 +1033,7 @@ async function renderAdminPanel() {
                 hardwareMap.get(users[i].hardwareId).push(users[i].name);
             }
         }
-        var hardwareHtml = '';
+        var hardwareHtml = '<div style="border:1px solid var(--border);border-radius:12px;">';
         for (var _iterator = hardwareMap, _isArray = Array.isArray(_iterator), _i = 0, _iterator = _isArray ? _iterator : _iterator[Symbol.iterator]();;) {
             var _ref;
             if (_isArray) {
@@ -1103,53 +1048,54 @@ async function renderAdminPanel() {
                 hwId = _ref2[0],
                 usersList = _ref2[1];
             var isBanned = bannedHardware.has(hwId);
-            hardwareHtml += '<div class="admin-row"><span><span class="hwid-badge">' + escapeHtml(hwId) + '</span><br><small>å³èç¨æ·: ' + usersList.join(', ') + '</small></span><div>' + (!isBanned ? '<button class="ban-btn" onclick="banHardware(\'' + hwId + '\')">å°ç¦ç¡¬ä»¶</button>' : '<button class="ban-btn ban-btn-success" onclick="unbanHardware(\'' + hwId + '\')">è§£å°ç¡¬ä»¶</button>') + '</div></div>';
+            hardwareHtml += '<div class="admin-row"><span><span class="hwid-badge">' + escapeHtml(hwId) + '</span><br><small>关联用户: ' + usersList.join(', ') + '</small></span><div>' + (!isBanned ? '<button class="ban-btn" onclick="banHardware(\'' + hwId + '\')">封禁硬件</button>' : '<button class="ban-btn ban-btn-success" onclick="unbanHardware(\'' + hwId + '\')">解封硬件</button>') + '</div></div>';
         }
-        if (hardwareMap.size === 0) hardwareHtml += '<div style="padding:20px;text-align:center;">ææ ç¡¬ä»¶è®°å½</div>';
+        if (hardwareMap.size === 0) hardwareHtml += '<div style="padding:20px;text-align:center;">暂无硬件记录</div>';
+        hardwareHtml += '</div>';
         document.getElementById('hardwareList').innerHTML = hardwareHtml;
         
         var userHtml = '';
         for (var i = 0; i < users.length; i++) {
             var user = users[i];
-            userHtml += '<div class="admin-row"><span><strong>' + escapeHtml(user.name) + '</strong> (' + user.role + ') | ' + (user.banned ? '<span style="color:#ef4444;">å·²å°ç¦</span>' : 'æ­£å¸¸') + ' ' + (user.isMuted ? 'ð' : '') + '<br><small class="hwid-badge">HW: ' + ((user.hardwareId && user.hardwareId.substring(0, 16)) || 'æ ') + '...</small></span><div><button class="ban-btn" onclick="toggleBanUser(\'' + escapeHtml(user.name) + '\')">' + (user.banned ? 'è§£å°' : 'å°ç¦') + '</button><button class="ban-btn" onclick="toggleMuteUser(\'' + escapeHtml(user.name) + '\')">' + (user.isMuted ? 'è§£é¤ç¦è¨' : 'ç¦è¨') + '</button><button class="ban-btn" style="background:#d946ef;" onclick="banUserHardware(\'' + escapeHtml(user.name) + '\', \'' + (user.hardwareId || '') + '\')">å°ç¦è´¦å·+ç¡¬ä»¶</button></div></div>';
+            userHtml += '<div class="admin-row"><span><strong>' + escapeHtml(user.name) + '</strong> (' + user.role + ') | ' + (user.banned ? '<span style="color:#ef4444;">已封禁</span>' : '正常') + ' ' + (user.isMuted ? '🔇' : '') + '<br><small class="hwid-badge">HW: ' + ((user.hardwareId && user.hardwareId.substring(0, 16)) || '无') + '...</small></span><div><button class="ban-btn" onclick="toggleBanUser(\'' + escapeHtml(user.name) + '\')">' + (user.banned ? '解封' : '封禁') + '</button><button class="ban-btn" onclick="toggleMuteUser(\'' + escapeHtml(user.name) + '\')">' + (user.isMuted ? '解除禁言' : '禁言') + '</button><button class="ban-btn" style="background:#d946ef;" onclick="banUserHardware(\'' + escapeHtml(user.name) + '\', \'' + (user.hardwareId || '') + '\')">封禁账号+硬件</button></div></div>';
         }
         document.getElementById('userMgmt').innerHTML = userHtml;
         
         var pendingHtml = '';
         for (var i = 0; i < pending.length; i++) {
             var s = pending[i];
-            pendingHtml += '<div class="admin-row"><div><strong>' + escapeHtml(s.name) + '</strong><br>' + escapeHtml(s.desc) + '<br>ä½è: ' + escapeHtml(s.author) + '</div><div><button class="ban-btn ban-btn-success" onclick="approveScript(' + s.id + ')">éè¿</button><button class="ban-btn" onclick="rejectScript(' + s.id + ')">æç»</button></div></div>';
+            pendingHtml += '<div class="admin-row"><div><strong>' + escapeHtml(s.name) + '</strong><br>' + escapeHtml(s.desc) + '<br>作者: ' + escapeHtml(s.author) + '</div><div><button class="ban-btn ban-btn-success" onclick="approveScript(' + s.id + ')">通过</button><button class="ban-btn" onclick="rejectScript(' + s.id + ')">拒绝</button></div></div>';
         }
-        document.getElementById('pendingScripts').innerHTML = pending.length === 0 ? '<div>ææ å¾å®¡æ ¸</div>' : pendingHtml;
+        document.getElementById('pendingScripts').innerHTML = pending.length === 0 ? '<div>暂无待审核</div>' : pendingHtml;
         
         updateGlobalMuteUI();
     } catch(e) { console.error(e); }
 }
 
 window.banVisitor = async function(ip, hardwareId) {
-    if (!confirm('å°ç¦è®¿å®¢ IP: ' + ip + ' åå¶ç¡¬ä»¶?')) return;
+    if (!confirm('封禁访客 IP: ' + ip + ' 及其硬件?')) return;
     if (hardwareId) await fetch('/api/admin/banHardware', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ hardwareId: hardwareId }) });
     await fetch('/api/admin/banIP', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ip: ip }) });
-    showToast("å·²å°ç¦", false);
+    showToast("已封禁", false);
     renderAdminPanel();
 };
 
 window.banHardware = async function(hardwareId) {
     await fetch('/api/admin/banHardware', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ hardwareId: hardwareId }) });
-    showToast("ç¡¬ä»¶å·²å°ç¦", false);
+    showToast("硬件已封禁", false);
     renderAdminPanel();
 };
 
 window.unbanHardware = async function(hardwareId) {
     await fetch('/api/admin/unbanHardware', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ hardwareId: hardwareId }) });
-    showToast("ç¡¬ä»¶å·²è§£å°", false);
+    showToast("硬件已解封", false);
     renderAdminPanel();
 };
 
 window.banUserHardware = async function(username, hardwareId) {
-    if (!confirm('å°ç¦ç¨æ· ' + username + ' åå¶ç¡¬ä»¶?')) return;
+    if (!confirm('封禁用户 ' + username + ' 及其硬件?')) return;
     await fetch('/api/admin/banUserHardware', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: username, hardwareId: hardwareId }) });
-    showToast("å·²å°ç¦", false);
+    showToast("已封禁", false);
     renderAdminPanel();
 };
 
@@ -1189,7 +1135,7 @@ async function login(username, password) {
             currentRole = data.role;
             currentUserData = { userId: data.userId, isBeauty: data.isBeauty || "A" };
             updateSidebarUI();
-            showToast('æ¬¢è¿åæ¥ï¼' + username, false);
+            showToast('欢迎回来，' + username, false);
             document.getElementById('loginModal').classList.remove('active');
             
             await initHardwareFingerprint();
@@ -1204,18 +1150,18 @@ async function login(username, password) {
             }
             return true;
         } else {
-            showToast(data.error || "ç»å½å¤±è´¥", true);
+            showToast(data.error || "登录失败", true);
             return false;
         }
     } catch(e) {
-        showToast("æå¡å¨è¿æ¥å¤±è´¥", true);
+        showToast("服务器连接失败", true);
         return false;
     }
 }
 
 async function register(username, password, cardKey) {
-    if (username.length < 3) { showToast("ç¨æ·åè³å°3ä½", true); return false; }
-    if (password.length < 3) { showToast("å¯ç è³å°3ä½", true); return false; }
+    if (username.length < 3) { showToast("用户名至少3位", true); return false; }
+    if (password.length < 3) { showToast("密码至少3位", true); return false; }
     try {
         var res = await fetch('/api/register', { 
             method: 'POST', 
@@ -1224,14 +1170,14 @@ async function register(username, password, cardKey) {
         });
         var data = await res.json();
         if (data.success) {
-            showToast("æ³¨åæåï¼", false);
+            showToast("注册成功！", false);
             return true;
         } else {
-            showToast(data.error || "æ³¨åå¤±è´¥", true);
+            showToast(data.error || "注册失败", true);
             return false;
         }
     } catch(e) {
-        showToast("æå¡å¨è¿æ¥å¤±è´¥", true);
+        showToast("服务器连接失败", true);
         return false;
     }
 }
@@ -1240,22 +1186,22 @@ function logout() {
     currentUser = null; currentRole = null; currentUserData = null; 
     hasValidCard = false;
     updateSidebarUI(); 
-    showToast("å·²ç»åº", false);
+    showToast("已登出", false);
     renderReviews();
-    document.getElementById('gamesContainer').innerHTML = '<div class="loading-spinner">è¯·åç»å½å¹¶éªè¯å¡å¯...</div>';
-    document.getElementById('executorLog').innerHTML = 'è¯·åç»å½å¹¶éªè¯å¡å¯åä½¿ç¨æ§è¡å¨';
-    document.getElementById('whitelistContent').innerHTML = 'ä»ç®¡çåå¯è§';
-    document.getElementById('adminContent').innerHTML = 'ä»ç®¡çåå¯è§';
+    document.getElementById('gamesContainer').innerHTML = '<div class="loading-spinner">请先登录并验证卡密...</div>';
+    document.getElementById('executorLog').innerHTML = '请先登录并验证卡密后使用执行器';
+    document.getElementById('whitelistContent').innerHTML = '仅管理员可见';
+    document.getElementById('adminContent').innerHTML = '仅管理员可见';
 }
 
 function updateSidebarUI() {
     var btn = document.getElementById('sidebarUserBtn');
     if (btn) {
         if (currentUser) { 
-            btn.innerHTML = '<i class="fas fa-user"></i> ' + currentUser + ' (ç»åº)'; 
+            btn.innerHTML = '<i class="fas fa-user"></i> ' + currentUser + ' (登出)'; 
             btn.onclick = function() { logout(); }; 
         } else { 
-            btn.innerHTML = "<i class='fas fa-sign-in-alt'></i> ç»å½/æ³¨å"; 
+            btn.innerHTML = "<i class='fas fa-sign-in-alt'></i> 登录/注册"; 
             btn.onclick = function() { document.getElementById('loginModal').classList.add('active'); }; 
         }
     }
@@ -1300,7 +1246,7 @@ function startAutoRefresh() {
             renderChats(currentRoom);
         if (document.getElementById('adminPage') && document.getElementById('adminPage').classList.contains('active-page') && currentRole === 'owner') 
             renderAdminPanel();
-    }, 5000);
+    }, 3000);
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -1352,12 +1298,12 @@ document.getElementById('executeBtn')?.addEventListener('click', function() {
     if (!checkExecutorAccess()) return;
     var code = document.getElementById('executorCode').value; 
     var log = document.getElementById('executorLog');
-    log.innerHTML += '\n> æ§è¡: ' + code.substring(0,60) + '...'; 
-    showToast("å·²æ§è¡", false); 
+    log.innerHTML += '\n> 执行: ' + code.substring(0,60) + '...'; 
+    showToast("已执行", false); 
 });
 document.getElementById('clearExecutorBtn')?.addEventListener('click', function() { 
     document.getElementById('executorCode').value = ''; 
-    document.getElementById('executorLog').innerHTML = 'æ§å¶å°å·²æ¸ç©º'; 
+    document.getElementById('executorLog').innerHTML = '控制台已清空'; 
 });
 
 document.getElementById('doLoginBtn')?.addEventListener('click', async function() { 
@@ -1375,7 +1321,7 @@ document.getElementById('doRegisterBtn')?.addEventListener('click', async functi
     var u = document.getElementById('regUsername').value.trim();
     var p = document.getElementById('regPassword').value.trim();
     var c = document.getElementById('regCard').value.trim();
-    if (!u || !p) { showToast("è¯·å¡«åç¨æ·ååå¯ç ", true); return; }
+    if (!u || !p) { showToast("请填写用户名和密码", true); return; }
     if (await register(u, p, c)) {
         document.getElementById('registerModal').classList.remove('active');
         await login(u, p);
