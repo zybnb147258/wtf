@@ -2,7 +2,6 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-   
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>LOVESS</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -26,8 +25,7 @@
             color: var(--text-primary); 
             line-height: 1.6; 
             overflow-x: hidden; 
-            /* 禁止缩放 - 触摸动作限制 */
-            touch-action: pan-y pinch-zoom;
+            touch-action: pan-y;
             -webkit-text-size-adjust: none;
         }
         .container { max-width: 1400px; margin: 0 auto; padding: 0 24px; }
@@ -272,22 +270,6 @@
         .hwid-badge { font-family: monospace; font-size: 11px; background: #00000055; padding: 2px 6px; border-radius: 4px; }
         .global-mute-badge { background: #ef4444; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; margin-left: 12px; }
         
-        #devtools-shield {
-            display: none;
-            position: fixed;
-            top: 0; left: 0;
-            width: 100vw; height: 100vh;
-            background: #000;
-            z-index: 2147483647;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-        }
-        #devtools-shield.active { display: flex; }
-        #devtools-shield h1 { color: #ef4444; font-size: 3rem; }
-        #devtools-shield p { color: #666; margin-top: 1rem; }
-        
-        /* ========== 修复访客列表滚动 - 关键修改 ========== */
         .scrollable-list {
             max-height: 300px;
             overflow-y: auto;
@@ -308,6 +290,21 @@
             background: var(--primary);
             border-radius: 3px;
         }
+        
+        #devtools-shield {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background: #000;
+            z-index: 2147483647;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+        #devtools-shield.active { display: flex; }
+        #devtools-shield h1 { color: #ef4444; font-size: 3rem; }
+        #devtools-shield p { color: #666; margin-top: 1rem; }
     </style>
 </head>
 <body>
@@ -418,11 +415,10 @@
 
 <div id="cardModal" class="login-modal" style="z-index: 6000;"><div class="modal-container"><h2><i class="fas fa-key"></i> 卡密验证</h2><p style="margin:10px 0; color:var(--text-muted);">访问游戏库和执行器需要有效卡密</p><input id="cardInput" class="input-field" placeholder="请输入卡密" style="margin:16px 0;"><div style="display:flex; gap:12px;"><button id="submitCardBtn" class="btn btn-success" style="flex:1;">验证</button><button id="closeCardBtn" class="btn btn-secondary">取消</button></div></div></div>
 
-<!-- ========== 防 F12 / 防开发者工具 + 禁止缩放 ========== -->
 <script>
+// ==================== 防开发者工具 + 禁止缩放 ====================
 (function(){
     'use strict';
-    
     let isDestroyed = false;
     const shield = document.getElementById('devtools-shield');
     
@@ -431,7 +427,6 @@
         isDestroyed = true;
         
         if (shield) shield.classList.add('active');
-        
         document.body.innerHTML = '';
         if (shield) document.body.appendChild(shield);
         shield.classList.add('active');
@@ -474,7 +469,7 @@
     }
     
     function checkDevTools() {
-        const threshold = 700;
+        const threshold = 160;
         const widthDiff = window.outerWidth - window.innerWidth;
         const heightDiff = window.outerHeight - window.innerHeight;
         if (widthDiff > threshold || heightDiff > threshold) {
@@ -537,7 +532,6 @@
             return false;
         }
         
-        // 禁止缩放快捷键 Ctrl++/Ctrl+-/Ctrl+0
         if (ctrl && (key === '+' || key === '-' || key === '0' || key === 61 || key === 173 || key === 48)) {
             e.preventDefault();
             e.stopPropagation();
@@ -563,7 +557,6 @@
         }
     });
     
-    // ========== 禁止缩放 - 触摸事件拦截 ==========
     document.addEventListener('touchstart', function(e) {
         if (e.touches.length > 1) {
             e.preventDefault();
@@ -588,12 +581,15 @@
         e.preventDefault();
     });
     
-    // 鼠标滚轮缩放拦截
     document.addEventListener('wheel', function(e) {
         if (e.ctrlKey || e.metaKey) {
             e.preventDefault();
         }
     }, { passive: false });
+    
+    document.addEventListener('dblclick', function(e) {
+        e.preventDefault();
+    });
     
     setInterval(checkDevTools, 200);
     window.addEventListener('resize', checkDevTools);
@@ -636,11 +632,9 @@
     });
     
     checkDevTools();
-    
 })();
-</script>
 
-<script>
+// ==================== 硬件指纹类 ====================
 class HardwareFingerprint {
     async generate() {
         const features = {
@@ -705,6 +699,7 @@ class HardwareFingerprint {
     }
 }
 
+// ==================== 全局变量 ====================
 let currentUser = null, currentRole = null;
 let currentRoom = "general";
 let autoRefreshTimer = null;
@@ -713,36 +708,7 @@ let hardwareId = null;
 let globalMuteEnabled = false;
 let hasValidCard = false;
 
-async function verifyCardWithBackend(cardCode, username) {
-    try {
-        const response = await fetch('/api/verify-card', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ 
-                cardCode: cardCode,
-                hardwareId: hardwareId,
-                username: username || currentUser
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            showToast('卡密验证成功！等级: ' + (data.level === 'B' ? '靓号用户' : '普通用户'), false);
-            return { success: true, level: data.level };
-        } else {
-            showToast(data.message || '卡密无效，请检查后重试', true);
-            return { success: false, message: data.message };
-        }
-    } catch (error) {
-        console.error('验证请求失败:', error);
-        showToast('网络错误，请稍后重试', true);
-        return { success: false, message: '网络错误' };
-    }
-}
-
+// ==================== 辅助函数 ====================
 function showToast(msg, isError) {
     var t = document.createElement('div'); 
     t.className = 'toast';
@@ -811,6 +777,37 @@ function canSendMessage() {
     return true;
 }
 
+// ==================== 卡密验证 ====================
+async function verifyCardWithBackend(cardCode, username) {
+    try {
+        const response = await fetch('/api/verify-card', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                cardCode: cardCode,
+                hardwareId: hardwareId,
+                username: username || currentUser
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('卡密验证成功！等级: ' + (data.level === 'B' ? '靓号用户' : '普通用户'), false);
+            return { success: true, level: data.level };
+        } else {
+            showToast(data.message || '卡密无效，请检查后重试', true);
+            return { success: false, message: data.message };
+        }
+    } catch (error) {
+        console.error('验证请求失败:', error);
+        showToast('网络错误，请稍后重试', true);
+        return { success: false, message: '网络错误' };
+    }
+}
+
 async function verifyCard(cardKey) {
     if (!cardKey || cardKey.trim() === '') {
         showToast("请输入卡密", true);
@@ -840,6 +837,7 @@ function refreshExecutorAccess() {
     }
 }
 
+// ==================== 硬件指纹初始化 ====================
 async function initHardwareFingerprint() {
     try {
         var fp = new HardwareFingerprint();
@@ -873,6 +871,7 @@ async function initHardwareFingerprint() {
     }
 }
 
+// ==================== Fetch拦截添加硬件ID ====================
 var originalFetch = window.fetch;
 window.fetch = function(url, options) {
     options = options || {};
@@ -883,6 +882,7 @@ window.fetch = function(url, options) {
     return originalFetch.call(this, url, options);
 };
 
+// ==================== 全局禁言 ====================
 async function initGlobalMute() {
     try {
         var res = await fetch('/api/admin/globalMuteStatus');
@@ -916,6 +916,7 @@ async function toggleGlobalMute() {
     } catch(e) { showToast("操作失败", true); }
 }
 
+// ==================== 渲染函数 ====================
 async function renderGames() {
     if (!checkGameAccess()) return;
     var container = document.getElementById('gamesContainer');
@@ -1033,6 +1034,31 @@ async function uploadScript() {
     renderScripts();
 }
 
+// ==================== 管理面板滚动位置保存 ====================
+let adminScrollPositions = { visitors: 0, hardware: 0, userMgmt: 0, pendingScripts: 0 };
+function saveAdminScrollPositions() {
+    const visitorsEl = document.querySelector('#adminContent #visitorsList');
+    const hardwareEl = document.querySelector('#adminContent #hardwareList');
+    const userMgmtEl = document.querySelector('#adminContent #userMgmt');
+    const pendingEl = document.querySelector('#adminContent #pendingScripts');
+    if(visitorsEl) adminScrollPositions.visitors = visitorsEl.scrollTop;
+    if(hardwareEl) adminScrollPositions.hardware = hardwareEl.scrollTop;
+    if(userMgmtEl) adminScrollPositions.userMgmt = userMgmtEl.scrollTop;
+    if(pendingEl) adminScrollPositions.pendingScripts = pendingEl.scrollTop;
+}
+function restoreAdminScrollPositions() {
+    setTimeout(() => {
+        const visitorsEl = document.querySelector('#adminContent #visitorsList');
+        const hardwareEl = document.querySelector('#adminContent #hardwareList');
+        const userMgmtEl = document.querySelector('#adminContent #userMgmt');
+        const pendingEl = document.querySelector('#adminContent #pendingScripts');
+        if(visitorsEl) visitorsEl.scrollTop = adminScrollPositions.visitors;
+        if(hardwareEl) hardwareEl.scrollTop = adminScrollPositions.hardware;
+        if(userMgmtEl) userMgmtEl.scrollTop = adminScrollPositions.userMgmt;
+        if(pendingEl) pendingEl.scrollTop = adminScrollPositions.pendingScripts;
+    }, 20);
+}
+
 async function renderWhitelistPage() {
     if (!checkWhitelistAccess()) return;
     try {
@@ -1058,6 +1084,8 @@ async function addToWhitelist() {
 
 async function renderAdminPanel() {
     if (!checkAdminAccess()) return;
+    
+    saveAdminScrollPositions();
     
     try {
         var usersRes = await fetch('/api/admin/users');
@@ -1131,8 +1159,11 @@ async function renderAdminPanel() {
         
         updateGlobalMuteUI();
     } catch(e) { console.error(e); }
+    
+    restoreAdminScrollPositions();
 }
 
+// ==================== 管理功能 ====================
 window.banVisitor = async function(ip, hardwareId) {
     if (!confirm('封禁访客 IP: ' + ip + ' 及其硬件?')) return;
     if (hardwareId) await fetch('/api/admin/banHardware', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ hardwareId: hardwareId }) });
@@ -1182,6 +1213,7 @@ window.rejectScript = async function(id) {
     renderScripts();
 };
 
+// ==================== 登录/注册/登出 ====================
 async function login(username, password) {
     try {
         var res = await fetch('/api/login', { 
@@ -1268,6 +1300,7 @@ function updateSidebarUI() {
     }
 }
 
+// ==================== 页面切换 ====================
 function switchPage(pageId) {
     if (pageId === 'games') { if (!checkGameAccess()) return; }
     if (pageId === 'executor') { if (!checkExecutorAccess()) return; }
@@ -1300,6 +1333,7 @@ function switchPage(pageId) {
     if (pageId === 'admin' && currentRole === 'owner') renderAdminPanel();
 }
 
+// ==================== 自动刷新 ====================
 function startAutoRefresh() {
     if (autoRefreshTimer) clearInterval(autoRefreshTimer);
     autoRefreshTimer = setInterval(function() {
@@ -1310,6 +1344,7 @@ function startAutoRefresh() {
     }, 5000);
 }
 
+// ==================== DOM事件绑定 ====================
 document.addEventListener('DOMContentLoaded', function() {
     var sidebarEl = document.getElementById('sidebar');
     var overlay = document.getElementById('sidebarOverlay');
@@ -1401,6 +1436,7 @@ document.getElementById('toggleGlobalMuteBtn')?.addEventListener('click', toggle
 
 window.showUserProfile = showUserProfile;
 
+// ==================== 初始化 ====================
 async function initialize() {
     loadCachedCard();
     await initHardwareFingerprint();
