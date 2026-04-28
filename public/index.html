@@ -747,7 +747,7 @@ async function verifyCardWithBackend(cardCode, username) {
             return { success: false, message: data.message };
         }
     } catch (error) {
-        console.error('验证请求失败:', error);
+        void(0);
         showToast('网络错误，请稍后重试', true);
         return { success: false, message: '网络错误' };
     }
@@ -874,11 +874,11 @@ async function initHardwareFingerprint() {
         
         if (data.hardwareId) {
             hardwareId = data.hardwareId;
-            console.log('硬件指纹已上报:', hardwareId.substring(0, 32) + '...');
+            void(0);
         }
         return true;
     } catch(e) {
-        console.error('指纹初始化失败:', e);
+        void(0);
         return true;
     }
 }
@@ -899,7 +899,7 @@ async function initGlobalMute() {
         var data = await res.json();
         globalMuteEnabled = data.enabled;
         updateGlobalMuteUI();
-    } catch(e) { console.error(e); }
+    } catch(e) { void(0); }
 }
 
 function updateGlobalMuteUI() {
@@ -941,7 +941,7 @@ async function renderGames() {
         var totalPlayers = 0;
         for (var i = 0; i < games.length; i++) totalPlayers += (games[i].players || 0);
         document.getElementById('statTotalPlayers').innerText = totalPlayers;
-    } catch(e) { console.error(e); }
+    } catch(e) { void(0); }
 }
 
 async function renderReviews() {
@@ -954,7 +954,7 @@ async function renderReviews() {
         }
         document.getElementById('reviewsList').innerHTML = reviews.length === 0 ? '<div>暂无评价</div>' : html;
         document.getElementById('statReviewCount').innerText = reviews.length;
-    } catch(e) { console.error(e); }
+    } catch(e) { void(0); }
 }
 
 async function submitReview() {
@@ -997,7 +997,7 @@ async function renderChats(room) {
             box.innerHTML = html;
             box.scrollTop = box.scrollHeight;
         }
-    } catch(e) { console.error(e); }
+    } catch(e) { void(0); }
 }
 
 async function sendChat() {
@@ -1024,7 +1024,7 @@ async function renderScripts() {
             html += '<div class="script-card"><h4>' + escapeHtml(scripts[i].name) + '</h4><p>' + escapeHtml(scripts[i].desc) + '</p><small>作者: ' + escapeHtml(scripts[i].author) + '</small></div>';
         }
         document.getElementById('scriptsContainer').innerHTML = scripts.length === 0 ? '<div>暂无脚本</div>' : html;
-    } catch(e) { console.error(e); }
+    } catch(e) { void(0); }
 }
 
 async function uploadScript() {
@@ -1055,7 +1055,7 @@ async function renderWhitelistPage() {
         html += '</div><div style="display:flex; gap:12px;"><input id="whitelistName" class="input-field" placeholder="添加用户"><button id="addWhitelistBtn" class="btn btn-success">添加</button></div>';
         document.getElementById('whitelistContent').innerHTML = html;
         document.getElementById('addWhitelistBtn')?.addEventListener('click', addToWhitelist);
-    } catch(e) { console.error(e); }
+    } catch(e) { void(0); }
 }
 
 async function addToWhitelist() {
@@ -1143,7 +1143,7 @@ async function renderAdminPanel() {
         document.getElementById('pendingScripts').innerHTML = pending.length === 0 ? '<div>暂无待审核</div>' : pendingHtml;
         
         updateGlobalMuteUI();
-    } catch(e) { console.error(e); }
+    } catch(e) { void(0); }
 }
 
 window.banVisitor = async function(ip, hardwareId) {
