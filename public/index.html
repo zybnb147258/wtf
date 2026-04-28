@@ -309,7 +309,16 @@
             background: var(--primary);
             border-radius: 3px;
         }
-    </style>
+    
+#adminContent {
+    overflow: hidden !important; /* 禁止 Admin 容器滚动 */
+}
+.scrollable-list {
+    max-height: 300px; /* 保持内部列表滚动 */
+    overflow-y: auto !important;
+}
+
+</style>
 </head>
 <body>
 
@@ -1479,7 +1488,7 @@ async function renderAdminPanelPartial() {
         }
     } catch(e) { void(0); }
 
-    adminContent.scrollTop = scrollTop; // 恢复滚动位置
+     // 恢复滚动位置
 }
 </script>
 </body>
