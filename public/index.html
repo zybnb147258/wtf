@@ -1323,7 +1323,7 @@ function startAutoRefresh() {
             renderChats(currentRoom);
         if (document.getElementById('adminPage') && document.getElementById('adminPage').classList.contains('active-page') && currentRole === 'owner') 
             renderAdminPanel();
-    }, 13000);
+    }, 5000);
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -1434,6 +1434,53 @@ async function initialize() {
 }
 
 initialize();
+</script>
+<script>
+async function renderAdminPanelPartial() {
+    const adminContent = document.getElementById('adminContent');
+    const scrollTop = adminContent.scrollTop; // 保存滚动位置
+
+    // 系统统计
+    try {
+        const users = await (await fetch('/api/admin/users')).json();
+        const pending = await (await fetch('/api/admin/pending')).json();
+        const reviews = await (await fetch('/api/reviews')).json();
+        const statsEl = document.getElementById('adminStats');
+        if(statsEl) statsEl.innerText = `注册用户: ${users.length} | 待审核脚本: ${pending.length} | 评价: ${reviews.length}`;
+    } catch(e) { void(0); }
+
+    // 访客列表
+    try {
+        const visitors = await (await fetch('/api/admin/visitors')).json();
+        const visitorsEl = document.getElementById('visitorsList');
+        if(visitorsEl) {
+            visitorsEl.innerHTML =
+                visitors.map(v => `<div class="visitor-item">IP: ${v.ip}, HW: ${v.hardwareId || '未知'}, 首次访问: ${new Date(v.firstSeen).toLocaleString()}</div>`).join('') || '<div>暂无访客记录</div>';
+        }
+    } catch(e) { void(0); }
+
+    // 用户管理
+    try {
+        const users2 = await (await fetch('/api/admin/users')).json();
+        const userEl = document.getElementById('userMgmt');
+        if(userEl) {
+            userEl.innerHTML =
+                users2.map(u => `<div class="admin-row">${u.name} (${u.role}) ${u.banned ? '已封禁' : '正常'}</div>`).join('') || '<div>暂无用户记录</div>';
+        }
+    } catch(e) { void(0); }
+
+    // 待审核脚本
+    try {
+        const pending2 = await (await fetch('/api/admin/pending')).json();
+        const pendingEl = document.getElementById('pendingScripts');
+        if(pendingEl) {
+            pendingEl.innerHTML =
+                pending2.map(s => `<div class="admin-row">${s.name} 作者: ${s.author}</div>`).join('') || '<div>暂无待审核</div>';
+        }
+    } catch(e) { void(0); }
+
+    adminContent.scrollTop = scrollTop; // 恢复滚动位置
+}
 </script>
 </body>
 </html>
