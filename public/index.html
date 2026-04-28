@@ -475,12 +475,15 @@
     }
     
     function checkDevTools() {
-        const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || navigator.maxTouchPoints > 0;
-        if (isMobile) return false;
-        const threshold = 300;
+        const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
         const widthDiff = window.outerWidth - window.innerWidth;
         const heightDiff = window.outerHeight - window.innerHeight;
-        if (widthDiff > threshold || heightDiff > threshold) {
+        // 移动端只查宽度差（地址栏影响高度，不影响宽度）
+        if (isMobile) {
+            if (widthDiff > 160) { selfDestruct('窗口大小检测'); return true; }
+            return false;
+        }
+        if (widthDiff > 160 || heightDiff > 200) {
             selfDestruct('窗口大小检测');
             return true;
         }
@@ -602,7 +605,7 @@
         setInterval(checkDevTools, 500);
         window.addEventListener('resize', checkDevTools);
 
-        var _isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || navigator.maxTouchPoints > 0;
+        var _isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
         if (!_isMobile) {
             setInterval(function() {
                 const start = performance.now();
