@@ -26,8 +26,10 @@
             line-height: 1.6; 
             overflow-x: hidden; 
             /* 禁止缩放 - 触摸动作限制 */
-            touch-action: pan-y pinch-zoom;
-            -webkit-text-size-adjust: none;
+            touch-action: pan-y;
+            -webkit-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+            text-size-adjust: 100%;
         }
         .container { max-width: 1400px; margin: 0 auto; padding: 0 24px; }
         .animated-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; overflow: hidden; }
@@ -473,7 +475,9 @@
     }
     
     function checkDevTools() {
-        const threshold = 160;
+        const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || navigator.maxTouchPoints > 0;
+        if (isMobile) return false;
+        const threshold = 300;
         const widthDiff = window.outerWidth - window.innerWidth;
         const heightDiff = window.outerHeight - window.innerHeight;
         if (widthDiff > threshold || heightDiff > threshold) {
@@ -594,47 +598,54 @@
         }
     }, { passive: false });
     
-    setInterval(checkDevTools, 200);
-    window.addEventListener('resize', checkDevTools);
-    
-    setInterval(function() {
-        const start = performance.now();
-        debugger;
-        const diff = performance.now() - start;
-        if (diff > 50) {
-            selfDestruct('Debugger检测');
+    setTimeout(function() {
+        setInterval(checkDevTools, 500);
+        window.addEventListener('resize', checkDevTools);
+
+        var _isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || navigator.maxTouchPoints > 0;
+        if (!_isMobile) {
+            setInterval(function() {
+                const start = performance.now();
+                debugger;
+                const diff = performance.now() - start;
+                if (diff > 100) {
+                    selfDestruct('Debugger检测');
+                }
+            }, 200);
         }
-    }, 100);
-    
-    const img = new Image();
-    Object.defineProperty(img, 'id', {
-        get: function() {
-            selfDestruct('控制台访问');
-            return '';
+
+        const img = new Image();
+        Object.defineProperty(img, 'id', {
+            get: function() {
+                selfDestruct('控制台访问');
+                return '';
+            }
+        });
+        const _origLog = console.log;
+        const _origClear = console.clear;
+        setInterval(function() {
+            _origLog('%c', img);
+            _origClear();
+        }, 1000);
+
+        ['log','warn','error','info','debug','table','trace','dir','group','groupEnd'].forEach(function(method) {
+            console[method] = function() {
+                selfDestruct('Console调用');
+            };
+        });
+
+        if (window.Firebug && window.Firebug.chrome && window.Firebug.chrome.isInitialized) {
+            selfDestruct('Firebug检测');
         }
-    });
-    setInterval(function() {
-        console.log('%c', img);
-        console.clear();
-    }, 1000);
-    
-    ['log','warn','error','info','debug','table','trace','dir','group','groupEnd'].forEach(function(method) {
-        console[method] = function() {
-            selfDestruct('Console调用');
-        };
-    });
-    
-    if (window.Firebug && window.Firebug.chrome && window.Firebug.chrome.isInitialized) {
-        selfDestruct('Firebug检测');
-    }
-    
-    window.addEventListener('devtoolschange', function(e) {
-        if (e.detail.open) {
-            selfDestruct('DevTools事件');
-        }
-    });
-    
-    checkDevTools();
+
+        window.addEventListener('devtoolschange', function(e) {
+            if (e.detail.open) {
+                selfDestruct('DevTools事件');
+            }
+        });
+
+        checkDevTools();
+    }, 1500);
     
 })();
 </script>
@@ -1085,7 +1096,10 @@ async function renderAdminPanel() {
                 visitorsHtml += '<div class="visitor-item"><div><strong>IP:</strong> ' + escapeHtml(v.ip) + '</div><div><strong>硬件ID:</strong> <span class="hwid-badge">' + escapeHtml((v.hardwareId && v.hardwareId.substring(0, 48)) || '未知') + '...</span></div><div><strong>首次访问:</strong> ' + new Date(v.firstSeen).toLocaleString() + '</div><div><strong>访问次数:</strong> ' + (v.visitCount || 1) + '</div><div><strong>WebGL:</strong> ' + escapeHtml((v.webgl && v.webgl.substring(0, 50)) || '未知') + '</div><div style="margin-top:8px;"><button class="ban-btn" onclick="banVisitor(\'' + v.ip + '\', \'' + v.hardwareId + '\')">封禁IP+硬件</button></div></div>';
             }
         }
-        document.getElementById('visitorsList').innerHTML = visitorsHtml;
+        var visitorsEl = document.getElementById('visitorsList');
+        var visitorsScroll = visitorsEl ? visitorsEl.scrollTop : 0;
+        visitorsEl.innerHTML = visitorsHtml;
+        visitorsEl.scrollTop = visitorsScroll;
         
         var hardwareMap = new Map();
         for (var i = 0; i < users.length; i++) {
