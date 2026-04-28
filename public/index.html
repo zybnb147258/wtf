@@ -309,16 +309,7 @@
             background: var(--primary);
             border-radius: 3px;
         }
-    
-#adminContent {
-    overflow: hidden !important; /* 禁止 Admin 容器滚动 */
-}
-.scrollable-list {
-    max-height: 300px; /* 保持内部列表滚动 */
-    overflow-y: auto !important;
-}
-
-</style>
+    </style>
 </head>
 <body>
 
@@ -432,233 +423,266 @@
 <script>
 (function(){
     'use strict';
-    
+
+    // ========== 关键修复：检测状态持久化 ==========
+    const DETECTED_KEY = '__devtools_detected_v2__';
+    const DETECTED_TS_KEY = '__devtools_ts__';
+
+    // 页面加载时检查是否已被标记
+    if (sessionStorage.getItem(DETECTED_KEY) === '1') {
+        // 已经检测到过，立即执行销毁
+        permanentBlock();
+        return;
+    }
+
     let isDestroyed = false;
     const shield = document.getElementById('devtools-shield');
-    
-    function selfDestruct(reason) {
-        if (isDestroyed) return;
-        isDestroyed = true;
-        
-        if (shield) shield.classList.add('active');
-        
-        document.body.innerHTML = '';
-        if (shield) document.body.appendChild(shield);
-        shield.classList.add('active');
-        
-        const headChildren = document.head.querySelectorAll('style, script, link, meta');
-        headChildren.forEach(el => el.remove());
-        
-        document.createElement = function(){return null};
-        document.createTextNode = function(){return null};
-        document.write = function(){};
-        document.writeln = function(){};
-        document.open = function(){};
-        document.close = function(){};
-        Element.prototype.appendChild = function(){return null};
-        Element.prototype.removeChild = function(){return null};
-        Element.prototype.innerHTML = '';
-        Element.prototype.outerHTML = '';
-        
-        window.eval = function(){};
-        window.Function = function(){};
-        window.setTimeout = function(){};
-        window.setInterval = function(){};
-        window.alert = function(){};
-        window.confirm = function(){};
-        window.prompt = function(){};
-        window.open = function(){return null};
-        
+
+    // ========== 关键修复：更彻底的页面销毁 ==========
+    function permanentBlock() {
+        // 标记为已检测，刷新后仍然拦截
+        try { sessionStorage.setItem(DETECTED_KEY, '1'); } catch(e){}
+        try { sessionStorage.setItem(DETECTED_TS_KEY, Date.now().toString()); } catch(e){}
+
+        // 立即停止所有资源加载
+        if (window.stop) window.stop();
+
+        // 清空整个文档
+        try {
+            document.documentElement.innerHTML = '';
+            document.head.innerHTML = '';
+            document.body.innerHTML = '';
+        } catch(e) {}
+
+        // 创建屏蔽层
+        var blockDiv = document.createElement('div');
+        blockDiv.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:#000;z-index:2147483647;display:flex;align-items:center;justify-content:center;flex-direction:column;';
+        blockDiv.innerHTML = '<h1 style="color:#ef4444;font-size:3rem;margin:0;">Access Denied</h1><p style="color:#666;margin-top:1rem;">Developer tools detected. Access revoked.</p>';
+
+        try {
+            document.body.appendChild(blockDiv);
+            document.body.style.cssText = 'margin:0;padding:0;overflow:hidden;background:#000;';
+        } catch(e) {
+            // 如果 body 被清空，重新创建
+            var newBody = document.createElement('body');
+            newBody.appendChild(blockDiv);
+            document.documentElement.appendChild(newBody);
+        }
+
+        // 禁用所有交互
+        document.oncontextmenu = function(){return false;};
+        document.onkeydown = function(){return false;};
+        document.onmousedown = function(){return false;};
+
+        // 冻结关键对象
         try {
             Object.freeze(document);
             Object.freeze(document.body);
-            Object.freeze(document.head);
-            Object.freeze(window);
+            Object.freeze(document.documentElement);
         } catch(e){}
-        
+
         document.title = 'Access Denied';
-        
-        if (window.stop) window.stop();
-        
-        console.clear();
+
+        // 循环清理，防止后续脚本恢复页面
+        setInterval(function() {
+            try {
+                var all = document.querySelectorAll('*:not(div[style*="z-index:2147483647"])');
+                for (var i = 0; i < all.length; i++) {
+                    if (all[i] !== blockDiv && all[i].parentNode) {
+                        all[i].parentNode.removeChild(all[i]);
+                    }
+                }
+            } catch(e){}
+        }, 100);
+
+        isDestroyed = true;
     }
-    
+
+    function selfDestruct(reason) {
+        if (isDestroyed) return;
+        permanentBlock();
+    }
+
     function checkDevTools() {
+        if (isDestroyed) return true;
+
         const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
         const widthDiff = window.outerWidth - window.innerWidth;
         const heightDiff = window.outerHeight - window.innerHeight;
+
+        var threshold = 160;
+
         // 移动端只查宽度差（地址栏影响高度，不影响宽度）
         if (isMobile) {
-            if (widthDiff > 160) { selfDestruct('窗口大小检测'); return true; }
-            return false;
+            if (widthDiff > threshold) { selfDestruct('窗口大小检测'); return true; }
+        } else {
+            if (widthDiff > threshold || heightDiff > 200) {
+                selfDestruct('窗口大小检测');
+                return true;
+            }
         }
-        if (widthDiff > 160 || heightDiff > 200) {
-            selfDestruct('窗口大小检测');
-            return true;
-        }
+
+        // 检测开发者工具特征
+        try {
+            var start = performance.now();
+            debugger;
+            var end = performance.now();
+            if (end - start > 100) {
+                selfDestruct('Debugger检测');
+                return true;
+            }
+        } catch(e) {}
+
         return false;
     }
-    
+
+    // 键盘拦截
     document.addEventListener('keydown', function(e) {
+        if (isDestroyed) { e.preventDefault(); return false; }
+
         const key = e.key || e.keyCode;
         const ctrl = e.ctrlKey || e.metaKey;
         const shift = e.shiftKey;
-        const alt = e.altKey;
-        
+
+        // F12
         if (key === 'F12' || key === 123) {
             e.preventDefault();
             e.stopPropagation();
             selfDestruct('F12');
             return false;
         }
-        
-        if (ctrl && shift && (key === 'I' || key === 73)) {
+
+        // Ctrl+Shift+I/J/C
+        if (ctrl && shift && (key === 'I' || key === 73 || key === 'J' || key === 74 || key === 'C' || key === 67)) {
             e.preventDefault();
             e.stopPropagation();
-            selfDestruct('Ctrl+Shift+I');
+            selfDestruct('Ctrl+Shift+' + key);
             return false;
         }
-        
-        if (ctrl && shift && (key === 'J' || key === 74)) {
-            e.preventDefault();
-            e.stopPropagation();
-            selfDestruct('Ctrl+Shift+J');
-            return false;
-        }
-        
-        if (ctrl && shift && (key === 'C' || key === 67)) {
-            e.preventDefault();
-            e.stopPropagation();
-            selfDestruct('Ctrl+Shift+C');
-            return false;
-        }
-        
+
+        // Ctrl+U (查看源码)
         if (ctrl && (key === 'U' || key === 85)) {
             e.preventDefault();
             e.stopPropagation();
             selfDestruct('Ctrl+U');
             return false;
         }
-        
-        if (ctrl && (key === 'S' || key === 83)) {
+
+        // Ctrl+S / Ctrl+P
+        if (ctrl && (key === 'S' || key === 83 || key === 'P' || key === 80)) {
             e.preventDefault();
             e.stopPropagation();
             return false;
         }
-       
-        if (ctrl && (key === 'P' || key === 80)) {
+
+        // 禁止缩放快捷键
+        if (ctrl && (key === '+' || key === '-' || key === '0' || key === 61 || key === 173 || key === 48 || key === 187 || key === 189)) {
             e.preventDefault();
             e.stopPropagation();
             return false;
         }
-        
-        // 禁止缩放快捷键 Ctrl++/Ctrl+-/Ctrl+0
-        if (ctrl && (key === '+' || key === '-' || key === '0' || key === 61 || key === 173 || key === 48)) {
-            e.preventDefault();
-            e.stopPropagation();
-            return false;
-        }
-        
+
     }, true);
-    
+
+    // 右键菜单
     document.addEventListener('contextmenu', function(e) {
+        if (isDestroyed) return false;
         e.preventDefault();
         e.stopPropagation();
         return false;
     }, true);
-    
+
+    // 拖拽
     document.addEventListener('dragstart', function(e) {
         e.preventDefault();
         return false;
     });
-    
+
+    // 选择
     document.addEventListener('selectstart', function(e) {
         if (e.target.tagName === 'HTML' || e.target.tagName === 'BODY') {
             e.preventDefault();
         }
     });
-    
-    // ========== 禁止缩放 - 触摸事件拦截 ==========
+
+    // ========== 禁止缩放 ==========
     document.addEventListener('touchstart', function(e) {
-        if (e.touches.length > 1) {
-            e.preventDefault();
-        }
+        if (e.touches.length > 1) e.preventDefault();
     }, { passive: false });
-    
+
     document.addEventListener('touchmove', function(e) {
-        if (e.touches.length > 1) {
-            e.preventDefault();
-        }
+        if (e.touches.length > 1) e.preventDefault();
     }, { passive: false });
-    
-    document.addEventListener('gesturestart', function(e) {
-        e.preventDefault();
-    });
-    
-    document.addEventListener('gesturechange', function(e) {
-        e.preventDefault();
-    });
-    
-    document.addEventListener('gestureend', function(e) {
-        e.preventDefault();
-    });
-    
-    // 鼠标滚轮缩放拦截
+
+    document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
+    document.addEventListener('gesturechange', function(e) { e.preventDefault(); });
+    document.addEventListener('gestureend', function(e) { e.preventDefault(); });
+
     document.addEventListener('wheel', function(e) {
-        if (e.ctrlKey || e.metaKey) {
-            e.preventDefault();
-        }
+        if (e.ctrlKey || e.metaKey) e.preventDefault();
     }, { passive: false });
-    
+
+    // ========== 增强检测循环 ==========
     setTimeout(function() {
-        setInterval(checkDevTools, 500);
+        // 窗口大小检测
+        setInterval(checkDevTools, 300);
         window.addEventListener('resize', checkDevTools);
 
+        // Debugger 检测（非移动端）
         var _isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
         if (!_isMobile) {
             setInterval(function() {
-                const start = performance.now();
+                if (isDestroyed) return;
+                var start = performance.now();
                 debugger;
-                const diff = performance.now() - start;
+                var diff = performance.now() - start;
                 if (diff > 100) {
                     selfDestruct('Debugger检测');
                 }
             }, 200);
         }
 
-        const img = new Image();
+        // Console 访问检测
+        var img = new Image();
         Object.defineProperty(img, 'id', {
             get: function() {
                 selfDestruct('控制台访问');
                 return '';
             }
         });
-        const _origLog = console.log;
-        const _origClear = console.clear;
-        setInterval(function() {
-            _origLog('%c', img);
-            _origClear();
-        }, 1000);
 
-        ['log','warn','error','info','debug','table','trace','dir','group','groupEnd'].forEach(function(method) {
+        try {
+            var _origLog = console.log;
+            setInterval(function() {
+                if (isDestroyed) return;
+                _origLog('%c', img);
+                console.clear();
+            }, 800);
+        } catch(e) {}
+
+        // 重写 console 方法
+        ['log','warn','error','info','debug','table','trace','dir','group','groupEnd','assert','count','time','timeEnd'].forEach(function(method) {
             console[method] = function() {
-                selfDestruct('Console调用');
+                if (!isDestroyed) selfDestruct('Console调用');
             };
         });
 
+        // Firebug 检测
         if (window.Firebug && window.Firebug.chrome && window.Firebug.chrome.isInitialized) {
             selfDestruct('Firebug检测');
         }
 
+        // DevTools 变化事件
         window.addEventListener('devtoolschange', function(e) {
-            if (e.detail.open) {
+            if (e.detail && e.detail.open) {
                 selfDestruct('DevTools事件');
             }
         });
 
+        // 初始检查
         checkDevTools();
-    }, 1500);
-    
+    }, 1000);
+
 })();
 </script>
 
@@ -1078,41 +1102,70 @@ async function addToWhitelist() {
     renderWhitelistPage();
 }
 
+// ========== 修复：保存和恢复滚动位置 ==========
+var _adminScrollPositions = {};
+
+function saveAdminScrollPositions() {
+    var lists = document.querySelectorAll('#adminContent .scrollable-list');
+    lists.forEach(function(list) {
+        if (list.id) {
+            _adminScrollPositions[list.id] = list.scrollTop;
+        }
+    });
+    // 同时保存页面滚动位置
+    _adminScrollPositions['__pageScroll__'] = window.pageYOffset || document.documentElement.scrollTop;
+}
+
+function restoreAdminScrollPositions() {
+    setTimeout(function() {
+        var lists = document.querySelectorAll('#adminContent .scrollable-list');
+        lists.forEach(function(list) {
+            if (list.id && _adminScrollPositions[list.id] !== undefined) {
+                list.scrollTop = _adminScrollPositions[list.id];
+            }
+        });
+        // 恢复页面滚动位置
+        if (_adminScrollPositions['__pageScroll__'] !== undefined) {
+            window.scrollTo(0, _adminScrollPositions['__pageScroll__']);
+        }
+    }, 10);
+}
+
 async function renderAdminPanel() {
     if (!checkAdminAccess()) return;
-    
+
+    // 保存当前滚动位置
+    saveAdminScrollPositions();
+
     try {
         var usersRes = await fetch('/api/admin/users');
         var scriptsRes = await fetch('/api/admin/pending');
         var reviewsRes = await fetch('/api/reviews');
         var bannedRes = await fetch('/api/admin/banned');
         var visitorsRes = await fetch('/api/admin/visitors');
-        
+
         var users = await usersRes.json();
         var pending = await scriptsRes.json();
         var reviews = await reviewsRes.json();
         var bannedData = await bannedRes.json();
         var visitors = await visitorsRes.json();
-        
+
         var bannedHardware = new Set(bannedData.bannedHardware || []);
-        
+
         var container = document.getElementById('adminContent');
         container.innerHTML = '<h3><i class="fas fa-chart-line"></i> 系统统计</h3><p>注册用户: ' + users.length + ' | 待审核脚本: ' + pending.length + ' | 评价: ' + reviews.length + ' | 已封禁硬件: ' + bannedHardware.size + '</p><h3 style="margin-top:20px;"><i class="fas fa-user-secret"></i> 未注册访客追踪</h3><div id="visitorsList" class="scrollable-list"></div><h3 style="margin-top:20px;"><i class="fas fa-microchip"></i> 硬件指纹管理</h3><div id="hardwareList" class="scrollable-list"></div><h3 style="margin-top:20px;"><i class="fas fa-users"></i> 用户管理</h3><div id="userMgmt" class="scrollable-list"></div><h3 style="margin-top:20px;"><i class="fas fa-clock"></i> 待审核脚本</h3><div id="pendingScripts" class="scrollable-list"></div>';
-        
+
         var visitorsHtml = '';
         if (visitors.length === 0) {
             visitorsHtml += '<div style="padding:20px;text-align:center;">暂无访客记录</div>';
         } else {
             for (var i = 0; i < visitors.length; i++) {
                 var v = visitors[i];
-                visitorsHtml += '<div class="visitor-item"><div><strong>IP:</strong> ' + escapeHtml(v.ip) + '</div><div><strong>硬件ID:</strong> <span class="hwid-badge">' + escapeHtml((v.hardwareId && v.hardwareId.substring(0, 48)) || '未知') + '...</span></div><div><strong>首次访问:</strong> ' + new Date(v.firstSeen).toLocaleString() + '</div><div><strong>访问次数:</strong> ' + (v.visitCount || 1) + '</div><div><strong>WebGL:</strong> ' + escapeHtml((v.webgl && v.webgl.substring(0, 50)) || '未知') + '</div><div style="margin-top:8px;"><button class="ban-btn" onclick="banVisitor(\'' + v.ip + '\', \'' + v.hardwareId + '\')">封禁IP+硬件</button></div></div>';
+                visitorsHtml += '<div class="visitor-item"><div><strong>IP:</strong> ' + escapeHtml(v.ip) + '</div><div><strong>硬件ID:</strong> <span class="hwid-badge">' + escapeHtml((v.hardwareId && v.hardwareId.substring(0, 48)) || '未知') + '...</span></div><div><strong>首次访问:</strong> ' + new Date(v.firstSeen).toLocaleString() + '</div><div><strong>访问次数:</strong> ' + (v.visitCount || 1) + '</div><div><strong>WebGL:</strong> ' + escapeHtml((v.webgl && v.webgl.substring(0, 50)) || '未知') + '</div><div style="margin-top:8px;"><button class="ban-btn" onclick="banVisitor('' + v.ip + '', '' + v.hardwareId + '')">封禁IP+硬件</button></div></div>';
             }
         }
-        var visitorsEl = document.getElementById('visitorsList');
-        var visitorsScroll = visitorsEl ? visitorsEl.scrollTop : 0;
-        visitorsEl.innerHTML = visitorsHtml;
-        visitorsEl.scrollTop = visitorsScroll;
-        
+        document.getElementById('visitorsList').innerHTML = visitorsHtml;
+
         var hardwareMap = new Map();
         for (var i = 0; i < users.length; i++) {
             if (users[i].hardwareId) {
@@ -1135,26 +1188,29 @@ async function renderAdminPanel() {
                 hwId = _ref2[0],
                 usersList = _ref2[1];
             var isBanned = bannedHardware.has(hwId);
-            hardwareHtml += '<div class="admin-row"><span><span class="hwid-badge">' + escapeHtml(hwId) + '</span><br><small>关联用户: ' + usersList.join(', ') + '</small></span><div>' + (!isBanned ? '<button class="ban-btn" onclick="banHardware(\'' + hwId + '\')">封禁硬件</button>' : '<button class="ban-btn ban-btn-success" onclick="unbanHardware(\'' + hwId + '\')">解封硬件</button>') + '</div></div>';
+            hardwareHtml += '<div class="admin-row"><span><span class="hwid-badge">' + escapeHtml(hwId) + '</span><br><small>关联用户: ' + usersList.join(', ') + '</small></span><div>' + (!isBanned ? '<button class="ban-btn" onclick="banHardware('' + hwId + '')">封禁硬件</button>' : '<button class="ban-btn ban-btn-success" onclick="unbanHardware('' + hwId + '')">解封硬件</button>') + '</div></div>';
         }
         if (hardwareMap.size === 0) hardwareHtml += '<div style="padding:20px;text-align:center;">暂无硬件记录</div>';
         document.getElementById('hardwareList').innerHTML = hardwareHtml;
-        
+
         var userHtml = '';
         for (var i = 0; i < users.length; i++) {
             var user = users[i];
-            userHtml += '<div class="admin-row"><span><strong>' + escapeHtml(user.name) + '</strong> (' + user.role + ') | ' + (user.banned ? '<span style="color:#ef4444;">已封禁</span>' : '正常') + ' ' + (user.isMuted ? '🔇' : '') + '<br><small class="hwid-badge">HW: ' + ((user.hardwareId && user.hardwareId.substring(0, 16)) || '无') + '...</small></span><div><button class="ban-btn" onclick="toggleBanUser(\'' + escapeHtml(user.name) + '\')">' + (user.banned ? '解封' : '封禁') + '</button><button class="ban-btn" onclick="toggleMuteUser(\'' + escapeHtml(user.name) + '\')">' + (user.isMuted ? '解除禁言' : '禁言') + '</button><button class="ban-btn" style="background:#d946ef;" onclick="banUserHardware(\'' + escapeHtml(user.name) + '\', \'' + (user.hardwareId || '') + '\')">封禁账号+硬件</button></div></div>';
+            userHtml += '<div class="admin-row"><span><strong>' + escapeHtml(user.name) + '</strong> (' + user.role + ') | ' + (user.banned ? '<span style="color:#ef4444;">已封禁</span>' : '正常') + ' ' + (user.isMuted ? '🔇' : '') + '<br><small class="hwid-badge">HW: ' + ((user.hardwareId && user.hardwareId.substring(0, 16)) || '无') + '...</small></span><div><button class="ban-btn" onclick="toggleBanUser('' + escapeHtml(user.name) + '')">' + (user.banned ? '解封' : '封禁') + '</button><button class="ban-btn" onclick="toggleMuteUser('' + escapeHtml(user.name) + '')">' + (user.isMuted ? '解除禁言' : '禁言') + '</button><button class="ban-btn" style="background:#d946ef;" onclick="banUserHardware('' + escapeHtml(user.name) + '', '' + (user.hardwareId || '') + '')">封禁账号+硬件</button></div></div>';
         }
         document.getElementById('userMgmt').innerHTML = userHtml;
-        
+
         var pendingHtml = '';
         for (var i = 0; i < pending.length; i++) {
             var s = pending[i];
             pendingHtml += '<div class="admin-row"><div><strong>' + escapeHtml(s.name) + '</strong><br>' + escapeHtml(s.desc) + '<br>作者: ' + escapeHtml(s.author) + '</div><div><button class="ban-btn ban-btn-success" onclick="approveScript(' + s.id + ')">通过</button><button class="ban-btn" onclick="rejectScript(' + s.id + ')">拒绝</button></div></div>';
         }
         document.getElementById('pendingScripts').innerHTML = pending.length === 0 ? '<div>暂无待审核</div>' : pendingHtml;
-        
+
         updateGlobalMuteUI();
+
+        // 恢复滚动位置
+        restoreAdminScrollPositions();
     } catch(e) { void(0); }
 }
 
@@ -1443,53 +1499,6 @@ async function initialize() {
 }
 
 initialize();
-</script>
-<script>
-async function renderAdminPanelPartial() {
-    const adminContent = document.getElementById('adminContent');
-    const scrollTop = adminContent.scrollTop; // 保存滚动位置
-
-    // 系统统计
-    try {
-        const users = await (await fetch('/api/admin/users')).json();
-        const pending = await (await fetch('/api/admin/pending')).json();
-        const reviews = await (await fetch('/api/reviews')).json();
-        const statsEl = document.getElementById('adminStats');
-        if(statsEl) statsEl.innerText = `注册用户: ${users.length} | 待审核脚本: ${pending.length} | 评价: ${reviews.length}`;
-    } catch(e) { void(0); }
-
-    // 访客列表
-    try {
-        const visitors = await (await fetch('/api/admin/visitors')).json();
-        const visitorsEl = document.getElementById('visitorsList');
-        if(visitorsEl) {
-            visitorsEl.innerHTML =
-                visitors.map(v => `<div class="visitor-item">IP: ${v.ip}, HW: ${v.hardwareId || '未知'}, 首次访问: ${new Date(v.firstSeen).toLocaleString()}</div>`).join('') || '<div>暂无访客记录</div>';
-        }
-    } catch(e) { void(0); }
-
-    // 用户管理
-    try {
-        const users2 = await (await fetch('/api/admin/users')).json();
-        const userEl = document.getElementById('userMgmt');
-        if(userEl) {
-            userEl.innerHTML =
-                users2.map(u => `<div class="admin-row">${u.name} (${u.role}) ${u.banned ? '已封禁' : '正常'}</div>`).join('') || '<div>暂无用户记录</div>';
-        }
-    } catch(e) { void(0); }
-
-    // 待审核脚本
-    try {
-        const pending2 = await (await fetch('/api/admin/pending')).json();
-        const pendingEl = document.getElementById('pendingScripts');
-        if(pendingEl) {
-            pendingEl.innerHTML =
-                pending2.map(s => `<div class="admin-row">${s.name} 作者: ${s.author}</div>`).join('') || '<div>暂无待审核</div>';
-        }
-    } catch(e) { void(0); }
-
-     // 恢复滚动位置
-}
 </script>
 </body>
 </html>
