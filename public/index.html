@@ -1321,36 +1321,9 @@ function startAutoRefresh() {
     autoRefreshTimer = setInterval(function() {
         if (document.getElementById('chatPage') && document.getElementById('chatPage').classList.contains('active-page') && currentUser) 
             renderChats(currentRoom);
-
-if (
-
-    document.getElementById('adminPage') &&
-
-    document.getElementById('adminPage').classList.contains('active-page') &&
-
-    currentRole === 'owner'
-
-) {
-
-    const adminContent = document.getElementById('adminContent');
-
-    const scrollTop = adminContent ? adminContent.scrollTop : 0;
-
-    renderAdminPanel().then(function () {
-
-        const newAdminContent = document.getElementById('adminContent');
-
-        if (newAdminContent) {
-
-            newAdminContent.scrollTop = scrollTop;
-
-        }
-
-    });
-
-}
-
-    }, 5000);
+        if (document.getElementById('adminPage') && document.getElementById('adminPage').classList.contains('active-page') && currentRole === 'owner') 
+            renderAdminPanel();
+    }, 13000);
 }
 
 document.addEventListener('DOMContentLoaded', function() {
