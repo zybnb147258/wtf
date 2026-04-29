@@ -25,7 +25,7 @@
             color: var(--text-primary); 
             line-height: 1.6; 
             overflow-x: hidden; 
-           
+            /* 禁止缩放 - 触摸动作限制 */
             touch-action: pan-y;
             -webkit-text-size-adjust: 100%;
             -ms-text-size-adjust: 100%;
@@ -288,7 +288,7 @@
         #devtools-shield h1 { color: #ef4444; font-size: 3rem; }
         #devtools-shield p { color: #666; margin-top: 1rem; }
         
-      
+        /* ========== 修复访客列表滚动 - 关键修改 ========== */
         .scrollable-list {
             max-height: 300px;
             overflow-y: auto;
@@ -311,16 +311,16 @@
         }
     </style>
 
-   
+    <!-- 防开发者工具预检测 - 页面渲染前执行 -->
     <script>
     (function() {
         'use strict';
         try {
             if (localStorage.getItem('__dev_detected') === '1' || sessionStorage.getItem('__dev_detected') === '1') {
-             
+                // 立即隐藏整个文档，防止任何内容闪烁
                 document.documentElement.style.cssText = 'display:none !important;';
 
-               
+                // DOM 加载后显示 404 shield
                 if (document.readyState === 'loading') {
                     document.addEventListener('DOMContentLoaded', showBlock);
                 } else {
@@ -337,8 +337,8 @@
                     document.documentElement.style.cssText = '';
                 }
 
-               
-                window.stop && window.stop();
+                // 不调用 window.stop()，让 DOMContentLoaded 正常执行以绑定菜单事件
+                // 但页面内容已经被清空，只显示 404
             }
         } catch(e) {}
     })();
@@ -353,7 +353,7 @@
 
 <div class="animated-bg"><div class="bg-circle"></div><div class="bg-circle"></div><div class="bg-circle"></div></div>
 <div id="serverStatus" class="server-status">服务器已连接</div>
-<div id="sidebarOverlay" class="sidebar-overlay"></div>
+<div id="sidebarOverlay" class="sidebar-overlay" onclick="this.classList.remove('active');document.getElementById('sidebar').classList.remove('open');"></div>
 <div id="sidebar" class="sidebar">
     <div class="sidebar-link active-side" data-page="reviews"><i class="fas fa-star"></i> 评价</div>
     <div class="sidebar-link" data-page="features"><i class="fas fa-gem"></i> 功能</div>
@@ -367,7 +367,7 @@
 </div>
 
 <div class="container">
-    <nav class="navbar"><div class="logo">LOVESS</div><div class="menu-icon" id="menuToggle"><i class="fas fa-bars"></i></div></nav>
+    <nav class="navbar"><div class="logo">LOVESS</div><div class="menu-icon" id="menuToggle" onclick="document.getElementById('sidebar').classList.add('open');document.getElementById('sidebarOverlay').classList.add('active');"><i class="fas fa-bars"></i></div></nav>
 
     <div id="reviewsPage" class="page-content active-page">
         <div class="page-header"><h1>用户评价</h1></div>
@@ -452,6 +452,7 @@
 
 <div id="cardModal" class="login-modal" style="z-index: 6000;"><div class="modal-container"><h2><i class="fas fa-key"></i> 卡密验证</h2><p style="margin:10px 0; color:var(--text-muted);">访问游戏库和执行器需要有效卡密</p><input id="cardInput" class="input-field" placeholder="请输入卡密" style="margin:16px 0;"><div style="display:flex; gap:12px;"><button id="submitCardBtn" class="btn btn-success" style="flex:1;">验证</button><button id="closeCardBtn" class="btn btn-secondary">取消</button></div></div></div>
 
+<!-- ========== 防 F12 / 防开发者工具 + 禁止缩放 ========== -->
 <script>
 (function(){
     'use strict';
@@ -513,7 +514,7 @@
         const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
         const widthDiff = window.outerWidth - window.innerWidth;
         const heightDiff = window.outerHeight - window.innerHeight;
-       
+        // 移动端只查宽度差（地址栏影响高度，不影响宽度）
         if (isMobile) {
             if (widthDiff > 160) { selfDestruct('窗口大小检测'); return true; }
             return false;
@@ -578,7 +579,7 @@
             return false;
         }
         
-       
+        // 禁止缩放快捷键 Ctrl++/Ctrl+-/Ctrl+0
         if (ctrl && (key === '+' || key === '-' || key === '0' || key === 61 || key === 173 || key === 48)) {
             e.preventDefault();
             e.stopPropagation();
@@ -604,6 +605,7 @@
         }
     });
     
+    // ========== 禁止缩放 - 触摸事件拦截 ==========
     document.addEventListener('touchstart', function(e) {
         if (e.touches.length > 1) {
             e.preventDefault();
@@ -628,6 +630,7 @@
         e.preventDefault();
     });
     
+    // 鼠标滚轮缩放拦截
     document.addEventListener('wheel', function(e) {
         if (e.ctrlKey || e.metaKey) {
             e.preventDefault();
