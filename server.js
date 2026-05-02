@@ -49,7 +49,13 @@ async function antiReplay(req, res, next) {
     
     const { nonce, timestamp, signature, ...data } = req.body;
     
-    if (!nonce || !timestamp || !signature) {
+    // 如果没有 nonce，跳过验证（兼容旧版）
+    if (!nonce) {
+        req.validatedData = data;
+        return next();
+    }
+    
+    if (!timestamp || !signature) {
         return res.status(400).json({ error: '缺少防重放参数' });
     }
     
@@ -75,10 +81,16 @@ async function antiReplay(req, res, next) {
     next();
 }
 
-// ========== 🔐 登录验证中间件 ==========
+// ========== 🔐 登录验证中间件（带日志） ==========
 async function loginRequired(req, res, next) {
     const token = req.headers['x-auth-token'];
+    console.log('=== loginRequired 调试 ===');
+    console.log('请求路径:', req.path);
+    console.log('收到的 token:', token);
+    console.log('所有请求头:', JSON.stringify(req.headers, null, 2));
+    
     if (!token) {
+        console.log('❌ 没有 token，返回 401');
         return res.status(401).json({ error: '请先登录' });
     }
     
@@ -94,6 +106,7 @@ async function loginRequired(req, res, next) {
             currentUser = name;
             currentUserId = user.userId;
             currentIsMuted = user.isMuted || false;
+            console.log('✅ 找到用户:', name, 'userId:', user.userId);
             break;
         }
     }
@@ -103,29 +116,40 @@ async function loginRequired(req, res, next) {
         currentUser = 'OWNER-康皓月';
         currentUserId = 'LOVESS';
         currentIsMuted = false;
+        console.log('✅ Owner 登录');
     }
     
     if (!valid) {
+        console.log('❌ token 无效或用户已封禁');
         return res.status(401).json({ error: '登录已失效，请重新登录' });
     }
     
+    console.log('✅ 验证通过，用户:', currentUser);
     req.currentUser = currentUser;
     req.currentUserId = currentUserId;
     req.currentIsMuted = currentIsMuted;
     next();
 }
 
-// ========== 👑 Owner 验证中间件 ==========
+// ========== 👑 Owner 验证中间件（带日志） ==========
 async function ownerRequired(req, res, next) {
     const token = req.headers['x-auth-token'];
+    console.log('=== ownerRequired 调试 ===');
+    console.log('请求路径:', req.path);
+    console.log('收到的 token:', token);
+    console.log('所有请求头:', JSON.stringify(req.headers, null, 2));
+    
     if (!token) {
+        console.log('❌ 没有 token');
         return res.status(401).json({ error: '请先登录' });
     }
     
     if (token !== 'LOVESS') {
+        console.log('❌ token 不是 LOVESS，是:', token);
         return res.status(403).json({ error: '只有管理员可以访问' });
     }
     
+    console.log('✅ Owner 验证通过');
     req.currentUser = 'OWNER-康皓月';
     req.currentUserId = 'LOVESS';
     req.currentIsMuted = false;
@@ -277,101 +301,10 @@ app.get('/api/reviews', async (req, res) => {
     res.json(reviews);
 });
 
-// ========== 完整游戏数据 ==========
 app.get('/api/games', async (req, res) => {
     res.json([
         { name: "luau", players: 6, link: "https://www.roblox.com/games/125462571840934", description: "luau游戏" },
-        { name: "APN AIRPORT", players: 8, link: "https://www.roblox.com/games/84312471277990", description: "APN AIRPORT游戏" },
-        { name: "Game 84312471277990", players: 1, link: "https://www.roblox.com/games/84312471277990", description: "Game 84312471277990游戏" },
-        { name: "Game 139278387435422", players: 1, link: "https://www.roblox.com/games/139278387435422", description: "Game 139278387435422游戏" },
-        { name: "未命名的体验", players: 0, link: "https://www.roblox.com/games/76253436603166", description: "未命名的体验游戏" },
-        { name: "未命名的体验", players: 1, link: "https://www.roblox.com/games/76253436603166", description: "未命名的体验游戏" },
-        { name: "Game 76253436603166", players: 1, link: "https://www.roblox.com/games/76253436603166", description: "Game 76253436603166游戏" },
-        { name: "无标题体验", players: 1, link: "https://www.roblox.com/games/104982570853315", description: "无标题体验游戏" },
-        { name: "无标题体验", players: 0, link: "https://www.roblox.com/games/104982570853315", description: "无标题体验游戏" },
-        { name: "Game 104982570853315", players: 1, link: "https://www.roblox.com/games/104982570853315", description: "Game 104982570853315游戏" },
-        { name: "Game 125322037757269", players: 1, link: "https://www.roblox.com/games/125322037757269", description: "Game 125322037757269游戏" },
-        { name: "四川省乐山市角色扮演", players: 1, link: "https://www.roblox.com/games/125322037757269", description: "四川省乐山市角色扮演游戏" },
-        { name: "QG SOF训练基地", players: 1, link: "https://www.roblox.com/games/119790064224094", description: "QG SOF训练基地游戏" },
-        { name: "无标题体验BH", players: 0, link: "https://www.roblox.com/games/107187943659932", description: "无标题体验BH游戏" },
-        { name: "无标题体验BH", players: 1, link: "https://www.roblox.com/games/107187943659932", description: "无标题体验BH游戏" },
-        { name: "V1.0 天津市", players: 1, link: "https://www.roblox.com/games/134133232679432", description: "V1.0 天津市游戏" },
-        { name: "Game 134133232679432", players: 4, link: "https://www.roblox.com/games/134133232679432", description: "Game 134133232679432游戏" },
-        { name: "V1.0 天津市", players: 12, link: "https://www.roblox.com/games/134133232679432", description: "V1.0 天津市游戏" },
-        { name: "私人备份", players: 1, link: "https://www.roblox.com/games/82603885483253", description: "私人备份游戏" },
-        { name: "ZZRP 枣庄市V1.0测试版", players: 0, link: "https://www.roblox.com/games/92331511205671", description: "ZZRP 枣庄市V1.0测试版游戏" },
-        { name: "HBPLA 湖北警戒区•世纪雄军V1", players: 47, link: "https://www.roblox.com/games/133580699283141", description: "HBPLA 湖北警戒区•世纪雄军V1游戏" },
-        { name: "湖北测试地图", players: 1, link: "https://www.roblox.com/games/139644178259589", description: "湖北测试地图游戏" },
-        { name: "未命名游戏", players: 14, link: "https://www.roblox.com/games/78808086690400", description: "未命名游戏游戏" },
-        { name: "展示类测试", players: 7, link: "https://www.roblox.com/games/88842067009491", description: "展示类测试游戏" },
-        { name: "CDJQ-PLA 四川成都军事角色扮演", players: 5, link: "https://www.roblox.com/games/86201530478305", description: "CDJQ-PLA 四川成都军事角色扮演游戏" },
-        { name: "CDJQ-PLA 四川成都军事角色扮演", players: 34, link: "https://www.roblox.com/games/86201530478305", description: "CDJQ-PLA 四川成都军事角色扮演游戏" },
-        { name: "CDJQ-PLA 四川省成都军事角色扮演", players: 0, link: "https://www.roblox.com/games/119930397304372", description: "CDJQ-PLA 四川省成都军事角色扮演游戏" },
-        { name: "CDJQ-PLA 四川省成都军事角色扮演", players: 1, link: "https://www.roblox.com/games/119930397304372", description: "CDJQ-PLA 四川省成都军事角色扮演游戏" },
-        { name: "月跑小镇-重回巅峰-施工中", players: 0, link: "https://www.roblox.com/games/88063017898040", description: "月跑小镇-重回巅峰-施工中游戏" },
-        { name: "月跑小镇-重回巅峰-施工中", players: 230, link: "https://www.roblox.com/games/88063017898040", description: "月跑小镇-重回巅峰-施工中游戏" },
-        { name: "CDJQ-PLA 四川省成都军事角色扮演", players: 1, link: "https://www.roblox.com/games/116796542625953", description: "CDJQ-PLA 四川省成都军事角色扮演游戏" },
-        { name: "车", players: 1, link: "https://www.roblox.com/games/113823868123067", description: "车游戏" },
-        { name: "东莞V1", players: 1, link: "https://www.roblox.com/games/116889626316417", description: "东莞V1游戏" },
-        { name: "RBX·FD 福鼎市RP", players: 0, link: "https://www.roblox.com/games/120842545621425", description: "RBX·FD 福鼎市RP游戏" },
-        { name: "RBX·FD 福鼎市RP", players: 1, link: "https://www.roblox.com/games/120842545621425", description: "RBX·FD 福鼎市RP游戏" },
-        { name: "绥化角色扮演", players: 1, link: "https://www.roblox.com/games/81262912666902", description: "绥化角色扮演游戏" },
-        { name: "温州市", players: 1, link: "https://www.roblox.com/games/89999256811858", description: "温州市游戏" },
-        { name: "WEN ZHOU 温州市", players: 0, link: "https://www.roblox.com/games/126536077971825", description: "WEN ZHOU 温州市游戏" },
-        { name: "内测 温州市V1.5", players: 0, link: "https://www.roblox.com/games/77973084343973", description: "内测 温州市V1.5游戏" },
-        { name: "内测 温州市V1.5", players: 1, link: "https://www.roblox.com/games/77973084343973", description: "内测 温州市V1.5游戏" },
-        { name: "未命名的体验", players: 0, link: "https://www.roblox.com/games/121459054718414", description: "未命名的体验游戏" },
-        { name: "DRX 唐山纪元", players: 0, link: "https://www.roblox.com/games/139594160698611", description: "DRX 唐山纪元游戏" },
-        { name: "福清军区新队伍 v3", players: 0, link: "https://www.roblox.com/games/89740547727693", description: "福清军区新队伍 v3游戏" },
-        { name: "消防角色扮演", players: 0, link: "https://www.roblox.com/games/105864889912764", description: "消防角色扮演游戏" },
-        { name: "吉林消防模拟器", players: 0, link: "https://www.roblox.com/games/95341414395643", description: "吉林消防模拟器游戏" },
-        { name: "消防角色扮演", players: 1, link: "https://www.roblox.com/games/109737057240460", description: "消防角色扮演游戏" },
-        { name: "测试11", players: 1, link: "https://www.roblox.com/games/116381866489501", description: "测试11游戏" },
-        { name: "SLR", players: 1, link: "https://www.roblox.com/games/84486469797722", description: "SLR游戏" },
-        { name: "SLR 沈阳", players: 0, link: "https://www.roblox.com/games/84486469797722", description: "SLR 沈阳游戏" },
-        { name: "SLR 沈阳", players: 0, link: "https://www.roblox.com/games/82952757703920", description: "SLR 沈阳游戏" },
-        { name: "废弃", players: 0, link: "https://www.roblox.com/games/84486469797722", description: "废弃游戏" },
-        { name: "长沙军区未完成", players: 0, link: "https://www.roblox.com/games/73188189994103", description: "长沙军区未完成游戏" },
-        { name: "喜迎V1 长沙军区", players: 1, link: "https://www.roblox.com/games/73188189994103", description: "喜迎V1 长沙军区游戏" },
-        { name: "灵丘县未来版v1.0", players: 0, link: "https://www.roblox.com/games/140274020200112", description: "灵丘县未来版v1.0游戏" },
-        { name: "兰州角色扮演", players: 0, link: "https://www.roblox.com/games/85888971748319", description: "兰州角色扮演游戏" },
-        { name: "12未命名", players: 0, link: "https://www.roblox.com/games/89182202249261", description: "12未命名游戏" },
-        { name: "北京-Beijing", players: 5, link: "https://www.roblox.com/games/93175099699395", description: "北京-Beijing游戏" },
-        { name: "中国人民解放军新乡营区8.0", players: 0, link: "https://www.roblox.com/games/112055606879665", description: "中国人民解放军新乡营区8.0游戏" },
-        { name: "北京市角色扮演RP V3.0", players: 1, link: "https://www.roblox.com/games/131848347649145", description: "北京市角色扮演RP V3.0游戏" },
-        { name: "灵丘县", players: 0, link: "https://www.roblox.com/games/86899173881843", description: "灵丘县游戏" },
-        { name: "库伦旗v2", players: 0, link: "https://www.roblox.com/games/79990663887618", description: "库伦旗v2游戏" },
-        { name: "未命名游戏", players: 1, link: "https://www.roblox.com/games/86681437544964", description: "未命名游戏游戏" },
-        { name: "灵丘县", players: 0, link: "https://www.roblox.com/games/93919623025904", description: "灵丘县游戏" },
-        { name: "宁德军区v3.5", players: 1, link: "https://www.roblox.com/games/114422286130383", description: "宁德军区v3.5游戏" },
-        { name: "Untitled Experience", players: 0, link: "https://www.roblox.com/games/126321008133967", description: "Untitled Experience游戏" },
-        { name: "PT 莆田武警训练基地临时训练场", players: 0, link: "https://www.roblox.com/games/102118579380038", description: "PT 莆田武警训练基地临时训练场游戏" },
-        { name: "淮北军区", players: 0, link: "https://www.roblox.com/games/89550055911108", description: "淮北军区游戏" },
-        { name: "無標題體驗", players: 0, link: "https://www.roblox.com/games/130552796180689", description: "無標題體驗游戏" },
-        { name: "九翼县月跑同人", players: 0, link: "https://www.roblox.com/games/126240354644691", description: "九翼县月跑同人游戏" },
-        { name: "自己玩仅此而已", players: 0, link: "https://www.roblox.com/games/121555659739392", description: "自己玩仅此而已游戏" },
-        { name: "消防警察", players: 1, link: "https://www.roblox.com/games/116166691457753", description: "消防警察游戏" },
-        { name: "新地图 江门市 V0.1 BETA", players: 0, link: "https://www.roblox.com/games/85136207317824", description: "新地图 江门市 V0.1 BETA游戏" },
-        { name: "宝顺县素材地图", players: 0, link: "https://www.roblox.com/games/76204639810098", description: "宝顺县素材地图游戏" },
-        { name: "江门市新V1.5", players: 1, link: "https://www.roblox.com/games/118469261585464", description: "江门市新V1.5游戏" },
-        { name: "江苏省南通市角色扮演", players: 0, link: "https://www.roblox.com/games/84545620226834", description: "江苏省南通市角色扮演游戏" },
-        { name: "测试地点：林希", players: 1, link: "https://www.roblox.com/games/72546232959253", description: "测试地点：林希游戏" },
-        { name: "青海军区角色扮演", players: 0, link: "https://www.roblox.com/games/83404642317800", description: "青海军区角色扮演游戏" },
-        { name: "TSG一周年庆典", players: 1, link: "https://www.roblox.com/games/87930553030195", description: "TSG一周年庆典游戏" },
-        { name: "AQ 黄-洲", players: 0, link: "https://www.roblox.com/games/87520697488660", description: "AQ 黄-洲游戏" },
-        { name: "迎春季 莆田武警训练基地", players: 0, link: "https://www.roblox.com/games/112032250597843", description: "迎春季 莆田武警训练基地游戏" },
-        { name: "PT 莆田武警训练基地临时训练场", players: 0, link: "https://www.roblox.com/games/102118579380038", description: "PT 莆田武警训练基地临时训练场游戏" },
-        { name: "青海军区角色扮演", players: 0, link: "https://www.roblox.com/games/83404642317800", description: "青海军区角色扮演游戏" },
-        { name: "青海军区角色扮演", players: 0, link: "https://www.roblox.com/games/83404642317800", description: "青海军区角色扮演游戏" },
-        { name: "PT 莆田武警训练基地临时训练场", players: 0, link: "https://www.roblox.com/games/102118579380038", description: "PT 莆田武警训练基地临时训练场游戏" },
-        { name: "迎春季 莆田武警训练基地", players: 0, link: "https://www.roblox.com/games/112032250597843", description: "迎春季 莆田武警训练基地游戏" },
-        { name: "北京市角色扮演RP V3.0", players: 1, link: "https://www.roblox.com/games/131848347649145", description: "北京市角色扮演RP V3.0游戏" },
-        { name: "PT 莆田武警训练基地临时训练场", players: 0, link: "https://www.roblox.com/games/102118579380038", description: "PT 莆田武警训练基地临时训练场游戏" },
-        { name: "迎春季 莆田武警训练基地", players: 0, link: "https://www.roblox.com/games/112032250597843", description: "迎春季 莆田武警训练基地游戏" },
-        { name: "迎春季 莆田武警训练基地", players: 0, link: "https://www.roblox.com/games/112032250597843", description: "迎春季 莆田武警训练基地游戏" },
-        { name: "北京市角色扮演RP V3.0", players: 0, link: "https://www.roblox.com/games/131848347649145", description: "北京市角色扮演RP V3.0游戏" },
-        { name: "BETA 北江市角色扮演", players: 0, link: "https://www.roblox.com/games/133100826497641", description: "BETA 北江市角色扮演游戏" },
-        { name: "迎春季 莆田武警训练基地", players: 1, link: "https://www.roblox.com/games/112032250597843", description: "迎春季 莆田武警训练基地游戏" }
+        { name: "APN AIRPORT", players: 8, link: "https://www.roblox.com/games/84312471277990", description: "APN AIRPORT游戏" }
     ]);
 });
 
@@ -419,7 +352,7 @@ app.get('/api/user/:username', async (req, res) => {
     }
 });
 
-// ========== 🔐 需要防重放的 POST 接口 ==========
+// ========== POST 接口 ==========
 
 app.post('/api/register', antiReplay, async (req, res) => {
     const { username, password, cardKey, hardwareId } = req.validatedData;
@@ -483,6 +416,9 @@ app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
     const ip = getRealIP(req);
     
+    console.log('=== 登录请求 ===');
+    console.log('用户名:', username);
+    
     if (!checkRateLimit('login_' + ip, 5, 60000)) {
         return res.json({ success: false, error: '登录尝试过于频繁' });
     }
@@ -495,11 +431,13 @@ app.post('/api/login', async (req, res) => {
     }
     
     if (username === 'OWNER-康皓月' && password === OWNER_PASSWORD) {
+        console.log('✅ Owner 登录成功');
         return res.json({ success: true, role: 'owner', userId: 'LOVESS', isBeauty: 'B', token: 'LOVESS' });
     }
     
     const users = await readJSON('users.json') || {};
     if (users[username] && users[username].password === password && !users[username].banned) {
+        console.log('✅ 用户登录成功:', username);
         return res.json({ 
             success: true, 
             role: users[username].role || 'user', 
@@ -508,31 +446,40 @@ app.post('/api/login', async (req, res) => {
             token: users[username].userId
         });
     }
+    console.log('❌ 登录失败:', username);
     res.json({ success: false, error: '用户名或密码错误' });
 });
 
 app.post('/api/chat', loginRequired, antiReplay, async (req, res) => {
     const { user, text, room, userId, isBeauty } = req.validatedData;
     
+    console.log('=== 发送消息 ===');
+    console.log('用户:', user);
+    console.log('消息:', text);
+    
     if (!text || text.length > 200 || text.length < 1) {
         return res.status(400).json({ error: '消息内容无效（1-200字符）' });
     }
     
     if (userId !== req.currentUserId) {
+        console.log('❌ userId 不匹配:', userId, '!=', req.currentUserId);
         return res.status(403).json({ error: '不能冒充他人' });
     }
     
     if (req.currentIsMuted) {
+        console.log('❌ 用户已被禁言');
         return res.status(403).json({ error: '你已被禁言' });
     }
     
     const globalMuteStatus = await readGitHubFile('whitelist.json');
     const isGlobalMuted = globalMuteStatus === 'B' || (globalMuteStatus && globalMuteStatus.globalMute === true);
     if (isGlobalMuted && req.currentUserId !== 'LOVESS') {
+        console.log('❌ 全局禁言中');
         return res.status(403).json({ error: '全局禁言中' });
     }
     
     if (!checkRateLimit('chat_' + req.currentUserId, 10, 60000)) {
+        console.log('❌ 频率限制');
         return res.status(429).json({ error: '发送消息过于频繁' });
     }
     
@@ -547,6 +494,7 @@ app.post('/api/chat', loginRequired, antiReplay, async (req, res) => {
         isBeauty: isBeauty 
     });
     await writeJSON('chats.json', chats, '新消息');
+    console.log('✅ 消息发送成功');
     res.json({ success: true });
 });
 
@@ -709,31 +657,37 @@ app.post('/api/fingerprint/register', async (req, res) => {
     res.json({ success: true, hardwareId: hardwareId });
 });
 
-// ========== 👑 管理接口（只有 OWNER-康皓月 能访问，且需要防重放） ==========
+// ========== 👑 管理接口 ==========
 
 app.post('/api/admin/toggleGlobalMute', ownerRequired, antiReplay, async (req, res) => {
+    console.log('=== 切换全局禁言 ===');
     try {
         let current = await readGitHubFile('whitelist.json');
         let newStatus = (current === 'B' || (current && current.globalMute === true)) ? 'A' : 'B';
         await writeGitHubFile('whitelist.json', newStatus, '切换全局禁言');
+        console.log('新状态:', newStatus);
         res.json({ enabled: newStatus === 'B' });
     } catch(e) {
+        console.error('切换失败:', e);
         res.status(500).json({ error: '操作失败' });
     }
 });
 
 app.post('/api/admin/toggleMute', ownerRequired, antiReplay, async (req, res) => {
     const { username } = req.validatedData;
+    console.log('=== 切换用户禁言 ===', username);
     const users = await readJSON('users.json') || {};
     if (users[username]) {
         users[username].isMuted = !users[username].isMuted;
         await writeJSON('users.json', users, '禁言/解禁: ' + username);
+        console.log('新状态:', users[username].isMuted);
     }
     res.json({ success: true });
 });
 
 app.post('/api/admin/toggleBan', ownerRequired, antiReplay, async (req, res) => {
     const { username } = req.validatedData;
+    console.log('=== 切换用户封禁 ===', username);
     const users = await readJSON('users.json') || {};
     if (users[username]) {
         users[username].banned = !users[username].banned;
@@ -741,12 +695,14 @@ app.post('/api/admin/toggleBan', ownerRequired, antiReplay, async (req, res) => 
         else bannedUsers.delete(username);
         await writeJSON('users.json', users, '封禁/解封: ' + username);
         saveBannedData();
+        console.log('新状态:', users[username].banned);
     }
     res.json({ success: true });
 });
 
 app.post('/api/admin/approveScript', ownerRequired, antiReplay, async (req, res) => {
     const { id } = req.validatedData;
+    console.log('=== 审核通过脚本 ===', id);
     const scripts = await readJSON('scripts.json') || [];
     const idx = scripts.findIndex(s => Number(s.id) === Number(id));
     if (idx !== -1) {
@@ -758,6 +714,7 @@ app.post('/api/admin/approveScript', ownerRequired, antiReplay, async (req, res)
 
 app.post('/api/admin/rejectScript', ownerRequired, antiReplay, async (req, res) => {
     const { id } = req.validatedData;
+    console.log('=== 拒绝脚本 ===', id);
     let scripts = await readJSON('scripts.json') || [];
     scripts = scripts.filter(s => Number(s.id) !== Number(id));
     await writeJSON('scripts.json', scripts, '拒绝脚本');
@@ -766,6 +723,7 @@ app.post('/api/admin/rejectScript', ownerRequired, antiReplay, async (req, res) 
 
 app.post('/api/admin/banHardware', ownerRequired, antiReplay, async (req, res) => {
     const { hardwareId } = req.validatedData;
+    console.log('=== 封禁硬件 ===', hardwareId);
     if (hardwareId) bannedHardware.add(hardwareId);
     saveBannedData();
     res.json({ success: true });
@@ -773,6 +731,7 @@ app.post('/api/admin/banHardware', ownerRequired, antiReplay, async (req, res) =
 
 app.post('/api/admin/unbanHardware', ownerRequired, antiReplay, async (req, res) => {
     const { hardwareId } = req.validatedData;
+    console.log('=== 解封硬件 ===', hardwareId);
     bannedHardware.delete(hardwareId);
     saveBannedData();
     res.json({ success: true });
@@ -780,6 +739,7 @@ app.post('/api/admin/unbanHardware', ownerRequired, antiReplay, async (req, res)
 
 app.post('/api/admin/banIP', ownerRequired, antiReplay, async (req, res) => {
     const { ip } = req.validatedData;
+    console.log('=== 封禁 IP ===', ip);
     if (ip && ip !== 'unknown') bannedIPs.add(ip);
     saveBannedData();
     res.json({ success: true });
@@ -787,6 +747,7 @@ app.post('/api/admin/banIP', ownerRequired, antiReplay, async (req, res) => {
 
 app.post('/api/admin/unbanIP', ownerRequired, antiReplay, async (req, res) => {
     const { ip } = req.validatedData;
+    console.log('=== 解封 IP ===', ip);
     bannedIPs.delete(ip);
     saveBannedData();
     res.json({ success: true });
@@ -794,6 +755,7 @@ app.post('/api/admin/unbanIP', ownerRequired, antiReplay, async (req, res) => {
 
 app.post('/api/admin/banUserHardware', ownerRequired, antiReplay, async (req, res) => {
     const { username, hardwareId } = req.validatedData;
+    console.log('=== 封禁用户+硬件 ===', username, hardwareId);
     bannedUsers.add(username);
     if (hardwareId) bannedHardware.add(hardwareId);
     saveBannedData();
@@ -806,6 +768,7 @@ app.post('/api/admin/banUserHardware', ownerRequired, antiReplay, async (req, re
 
 app.post('/api/review/delete', ownerRequired, antiReplay, async (req, res) => {
     const { id } = req.validatedData;
+    console.log('=== 删除评价 ===', id);
     let reviews = await readJSON('reviews.json') || [];
     reviews = reviews.filter(r => r.id !== id);
     await writeJSON('reviews.json', reviews, '删除评价');
@@ -813,18 +776,20 @@ app.post('/api/review/delete', ownerRequired, antiReplay, async (req, res) => {
 });
 
 app.post('/api/whitelist/add', ownerRequired, antiReplay, async (req, res) => {
+    const { name } = req.validatedData;
+    console.log('=== 添加白名单 ===', name);
     let whitelist = await readJSON('whitelist.json');
     if (typeof whitelist === 'string') whitelist = [];
     if (!Array.isArray(whitelist)) whitelist = [];
-    const { name } = req.validatedData;
     if (!whitelist.includes(name)) whitelist.push(name);
     await writeJSON('whitelist.json', whitelist, '添加白名单');
     res.json({ success: true });
 });
 
-// ========== 👑 管理面板 GET 接口（只有 OWNER-康皓月 能访问） ==========
+// ========== 管理面板 GET 接口 ==========
 
 app.get('/api/admin/users', ownerRequired, async (req, res) => {
+    console.log('=== 获取用户列表 ===');
     const users = await readJSON('users.json') || {};
     const list = [];
     for (const [name, info] of Object.entries(users)) {
@@ -843,20 +808,24 @@ app.get('/api/admin/users', ownerRequired, async (req, res) => {
 });
 
 app.get('/api/admin/pending', ownerRequired, async (req, res) => {
+    console.log('=== 获取待审核脚本 ===');
     const scripts = await readJSON('scripts.json') || [];
     res.json(scripts.filter(s => s.status === 'pending'));
 });
 
 app.get('/api/admin/chats', ownerRequired, async (req, res) => {
+    console.log('=== 获取聊天记录 ===');
     const chats = await readJSON('chats.json') || [];
     res.json(chats);
 });
 
 app.get('/api/admin/banned', ownerRequired, async (req, res) => {
+    console.log('=== 获取封禁列表 ===');
     res.json({ bannedHardware: [...bannedHardware], bannedIPs: [...bannedIPs], bannedUsers: [...bannedUsers] });
 });
 
 app.get('/api/admin/visitors', ownerRequired, async (req, res) => {
+    console.log('=== 获取访客记录 ===');
     const list = [];
     for (const [ip, v] of visitors) {
         list.push(v);
