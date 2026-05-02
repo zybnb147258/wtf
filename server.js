@@ -36,7 +36,7 @@ function checkRateLimit(key, limit, windowMs) {
     return true;
 }
 
-// ========== 🔐 登录验证中间件 ==========
+// ========== 登录验证中间件 ==========
 async function loginRequired(req, res, next) {
     const token = req.headers['x-auth-token'];
     if (!token) {
@@ -73,15 +73,6 @@ async function loginRequired(req, res, next) {
     req.currentUser = currentUser;
     req.currentUserId = currentUserId;
     req.currentIsMuted = currentIsMuted;
-    next();
-}
-
-// ========== 🔐 管理员验证中间件 ==========
-function adminRequired(req, res, next) {
-    const adminKey = req.headers['x-admin-key'] || req.body.adminKey;
-    if (!adminKey || adminKey !== ADMIN_SECRET) {
-        return res.status(403).json({ error: '需要管理员权限' });
-    }
     next();
 }
 
@@ -233,7 +224,9 @@ app.get('/api/reviews', async (req, res) => {
 app.get('/api/games', async (req, res) => {
     res.json([
         { name: "luau", players: 6, link: "https://www.roblox.com/games/125462571840934", description: "luau游戏" },
-        { name: "APN AIRPORT", players: 8, link: "https://www.roblox.com/games/84312471277990", description: "APN AIRPORT游戏" }
+        { name: "APN AIRPORT", players: 8, link: "https://www.roblox.com/games/84312471277990", description: "APN AIRPORT游戏" },
+        { name: "Game 84312471277990", players: 1, link: "https://www.roblox.com/games/84312471277990", description: "Game 84312471277990游戏" },
+        { name: "Game 139278387435422", players: 1, link: "https://www.roblox.com/games/139278387435422", description: "Game 139278387435422游戏" }
     ]);
 });
 
@@ -281,7 +274,7 @@ app.get('/api/user/:username', async (req, res) => {
     }
 });
 
-// ========== POST 接口（已禁用防重放） ==========
+// ========== POST 接口 ==========
 
 app.post('/api/register', async (req, res) => {
     const { username, password, cardKey, hardwareId } = req.body;
@@ -564,9 +557,9 @@ app.post('/api/fingerprint/register', async (req, res) => {
     res.json({ success: true, hardwareId: hardwareId });
 });
 
-// ========== 管理接口 ==========
+// ========== 管理接口（已移除 adminRequired，任何人可访问） ==========
 
-app.post('/api/admin/toggleGlobalMute', adminRequired, async (req, res) => {
+app.post('/api/admin/toggleGlobalMute', async (req, res) => {
     try {
         let current = await readGitHubFile('whitelist.json');
         let newStatus = (current === 'B' || current?.globalMute === true) ? 'A' : 'B';
@@ -577,7 +570,7 @@ app.post('/api/admin/toggleGlobalMute', adminRequired, async (req, res) => {
     }
 });
 
-app.post('/api/admin/toggleMute', adminRequired, async (req, res) => {
+app.post('/api/admin/toggleMute', async (req, res) => {
     const { username } = req.body;
     const users = await readJSON('users.json') || {};
     if (users[username]) {
@@ -587,7 +580,7 @@ app.post('/api/admin/toggleMute', adminRequired, async (req, res) => {
     res.json({ success: true });
 });
 
-app.post('/api/admin/toggleBan', adminRequired, async (req, res) => {
+app.post('/api/admin/toggleBan', async (req, res) => {
     const { username } = req.body;
     const users = await readJSON('users.json') || {};
     if (users[username]) {
@@ -597,13 +590,134 @@ app.post('/api/admin/toggleBan', adminRequired, async (req, res) => {
     res.json({ success: true });
 });
 
-app.post('/api/admin/approveScript', adminRequired, async (req, res) => {
+app.post('/api/admin/approveScript', async (req, res) => {
     const { id } = req.body;
     const scripts = await readJSON('scripts.json') || [];
     const idx = scripts.findIndex(s => s.id === id);
     if (idx !== -1) {
         scripts[idx].status = 'approved';
         await writeJSON('scripts.json', scripts, `审核通过脚本: ${scripts[idx].name}`);
+    }
+    res.json({ success: true });
+});
+
+app.post('/api/admin/rejectScript', async (req, res) => {
+    const { id } = req.body;
+    let scripts = await readJSON('scripts.json') || [];
+    scripts = scripts.filter(s => s.id !== id);
+    await writeJSON('scripts.json', scripts, '拒绝脚本');
+    res.json({ success: true });
+});
+
+app.post('/api/admin/banHardware', async (req, res) => {
+    const { hardwareId } = req.body;
+    if (hardwareId) bannedHardware.add(hardwareId);
+    saveBannedData();
+    res.json({ success: true });
+});
+
+app.post('/api/admin/unbanHardware', async (req, res) => {
+    const { hardwareId } = req.body;
+    bannedHardware.delete(hardwareId);
+    saveBannedData();
+    res.json({ success: true });
+});
+
+app.post('/api/admin/banIP', async (req, res) => {
+    const { ip } = req.body;
+    if (ip && ip !== 'unknown') bannedIPs.add(ip);
+    saveBannedData();
+    res.json({ success: true });
+});
+
+app.post('/api/admin/unbanIP', async (req, res) => {
+    const { ip } = req.body;
+    bannedIPs.delete(ip);
+    saveBannedData();
+    res.json({ success: true });
+});
+
+app.post('/api/admin/banUserHardware', async (req, res) => {
+    const { username, hardwareId } = req.body;
+    bannedUsers.add(username);
+    if (hardwareId) bannedHardware.add(hardwareId);
+    saveBannedData();
+    
+    const users = await readJSON('users.json') || {};
+    if (users[username]) users[username].banned = true;
+    await writeJSON('users.json', users, '封禁用户');
+    res.json({ success: true });
+});
+
+app.post('/api/review/delete', async (req, res) => {
+    const { id } = req.body;
+    let reviews = await readJSON('reviews.json') || [];
+    reviews = reviews.filter(r => r.id !== id);
+    await writeJSON('reviews.json', reviews, '删除评价');
+    res.json({ success: true });
+});
+
+app.post('/api/whitelist/add', async (req, res) => {
+    let whitelist = await readJSON('whitelist.json');
+    if (typeof whitelist === 'string') whitelist = [];
+    if (!Array.isArray(whitelist)) whitelist = [];
+    const { name } = req.body;
+    if (!whitelist.includes(name)) whitelist.push(name);
+    await writeJSON('whitelist.json', whitelist, '添加白名单');
+    res.json({ success: true });
+});
+
+// ========== 管理面板 GET 接口（已移除 adminRequired） ==========
+app.get('/api/admin/users', async (req, res) => {
+    const users = await readJSON('users.json') || {};
+    const list = [];
+    for (const [name, info] of Object.entries(users)) {
+        list.push({
+            name: name,
+            role: info.role || 'user',
+            banned: info.banned || false,
+            isMuted: info.isMuted || false,
+            hardwareId: info.hardwareId || null,
+            registerIP: info.registerIP,
+            isBeauty: info.isBeauty || 'A',
+            usedCard: info.usedCard || null
+        });
+    }
+    res.json(list);
+});
+
+app.get('/api/admin/pending', async (req, res) => {
+    const scripts = await readJSON('scripts.json') || [];
+    res.json(scripts.filter(s => s.status === 'pending'));
+});
+
+app.get('/api/admin/chats', async (req, res) => {
+    const chats = await readJSON('chats.json') || [];
+    res.json(chats);
+});
+
+app.get('/api/admin/banned', async (req, res) => {
+    res.json({ bannedHardware: [...bannedHardware], bannedIPs: [...bannedIPs], bannedUsers: [...bannedUsers] });
+});
+
+app.get('/api/admin/visitors', async (req, res) => {
+    const list = [];
+    for (const [ip, v] of visitors) {
+        list.push(v);
+    }
+    res.json(list);
+});
+
+// ========== 启动服务器 ==========
+loadUsedCards();
+loadBannedData();
+loadVisitorsData();
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`LOVESS 后端已启动！`);
+    console.log(`监听端口: ${PORT}`);
+});        await writeJSON('scripts.json', scripts, `审核通过脚本: ${scripts[idx].name}`);
     }
     res.json({ success: true });
 });
