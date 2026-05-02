@@ -8,451 +8,124 @@ app.set('trust proxy', true);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static('public'));
 
+// ========== 配置 ==========
+const SECRET_KEY = process.env.SECRET_KEY || 'LOVESS-SECRET-KEY-2024';
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+const GITHUB_USER = process.env.GITHUB_USER || "liushumei11110-boop";
+const REPO_NAME = process.env.REPO_NAME || "lovess";
+const OWNER_PASSWORD = process.env.OWNER_PASSWORD || "khyzybnb666147";
+const ADMIN_SECRET = process.env.ADMIN_SECRET || "LOVESS-ADMIN-2024";
+
+// ========== 防重放存储 ==========
+const usedNonces = new Map();
+const rateLimit = new Map();
+
+setInterval(() => {
+    const now = Date.now();
+    for (const [nonce, expires] of usedNonces.entries()) {
+        if (expires < now) usedNonces.delete(nonce);
+    }
+}, 300000);
+
+// ========== 工具函数 ==========
 function getRealIP(req) {
     const forwarded = req.headers['x-forwarded-for'];
     if (forwarded) return forwarded.split(',')[0].trim();
     return req.ip || req.connection?.remoteAddress || 'unknown';
 }
 
-let bannedHardware = new Set();
-let bannedIPs = new Set();
-let bannedUsers = new Set();
-let hardwareToUser = new Map();
-let visitors = new Map();
-
-const VALID_CARDS = ["LOVESS-3827", "LOVESS-9156", "LOVESS-4732", "LOVESS-7481", "LOVESS-2069", "LOVESS-5688", "LOVESS-9459"];
-const BEAUTY_CARDS = ["LOVESS-3827", "LOVESS-9156", "LOVESS-4732", "LOVESS-7481", "LOVESS-2069"];
-let usedCards = new Set();
-
-function generateHardwareId(fingerprint) {
-    const stableFeatures = {
-        webgl: fingerprint.webgl,
-        cpuCores: fingerprint.cpuCores,
-        memory: fingerprint.memory,
-        screen: fingerprint.screen,
-        audio: fingerprint.audio,
-        fonts: fingerprint.fonts,
-        touchPoints: fingerprint.touchPoints,
-        platform: fingerprint.platform,
-        timezone: fingerprint.timezone
-    };
-    const str = JSON.stringify(stableFeatures);
-    return crypto.createHash('sha256').update(str).digest('hex');
+function checkRateLimit(key, limit, windowMs) {
+    const now = Date.now();
+    const record = rateLimit.get(key) || [];
+    const recent = record.filter(t => now - t < windowMs);
+    if (recent.length >= limit) return false;
+    recent.push(now);
+    rateLimit.set(key, recent);
+    return true;
 }
 
-function loadBannedData() {
-    try {
-        const filePath = path.join(__dirname, 'banned.json');
-        if (fs.existsSync(filePath)) {
-            const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-            bannedHardware = new Set(data.bannedHardware || []);
-            bannedIPs = new Set(data.bannedIPs || []);
-            bannedUsers = new Set(data.bannedUsers || []);
-            console.log(`封禁数据: ${bannedHardware.size} 硬件, ${bannedIPs.size} IP, ${bannedUsers.size} 用户`);
-        }
-    } catch(e) { console.error(e); }
-}
-
-function saveBannedData() {
-    try {
-        fs.writeFileSync(path.join(__dirname, 'banned.json'), JSON.stringify({
-            bannedHardware: [...bannedHardware],
-            bannedIPs: [...bannedIPs],
-            bannedUsers: [...bannedUsers]
-        }, null, 2));
-    } catch(e) { console.error(e); }
-}
-
-function loadUsedCards() {
-    try {
-        const filePath = path.join(__dirname, 'used_cards.json');
-        if (fs.existsSync(filePath)) {
-            const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-            usedCards = new Set(data);
-            console.log(`加载已使用卡密: ${usedCards.size} 个`);
-        }
-    } catch(e) { console.error('加载已使用卡密失败:', e); }
-}
-
-function saveUsedCards() {
-    try {
-        fs.writeFileSync(path.join(__dirname, 'used_cards.json'), JSON.stringify([...usedCards], null, 2));
-    } catch(e) { console.error('保存已使用卡密失败:', e); }
-}
-
-function logCardVerification(cardCode, hardwareId, username, ip, action) {
-    try {
-        const logsPath = path.join(__dirname, 'card_verification_logs.json');
-        let logs = [];
-        if (fs.existsSync(logsPath)) {
-            logs = JSON.parse(fs.readFileSync(logsPath, 'utf8'));
-        }
-        logs.push({
-            cardCode: cardCode,
-            hardwareId: hardwareId,
-            username: username || '未登录',
-            ip: ip,
-            action: action,
-            timestamp: new Date().toISOString()
-        });
-        fs.writeFileSync(logsPath, JSON.stringify(logs, null, 2));
-    } catch(e) { console.error('保存验证日志失败:', e); }
-}
-
-function loadVisitorsData() {
-    try {
-        const filePath = path.join(__dirname, 'visitors.json');
-        if (fs.existsSync(filePath)) {
-            const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-            visitors.clear();
-            for (const v of data) {
-                visitors.set(v.ip, v);
-            }
-            console.log(`加载访客数据: ${visitors.size} 条记录`);
-        }
-    } catch(e) { console.error('加载访客数据失败:', e); }
-}
-
-function saveVisitorsData() {
-    try {
-        const filePath = path.join(__dirname, 'visitors.json');
-        const data = [];
-        for (const [ip, v] of visitors) {
-            data.push(v);
-        }
-        fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-    } catch(e) { console.error('保存访客数据失败:', e); }
-}
-
-app.use((req, res, next) => {
-    const ip = getRealIP(req);
-    const hardwareId = req.headers['x-hardware-id'];
+// ========== 🔐 防重放中间件 ==========
+async function antiReplay(req, res, next) {
+    if (req.method !== 'POST') return next();
     
-    if (req.path.startsWith('/api/')) {
-        return next();
+    const { nonce, timestamp, signature, ...data } = req.body;
+    
+    if (!nonce || !timestamp || !signature) {
+        return res.status(400).json({ error: '缺少防重放参数' });
     }
     
-    if (req.path.match(/\.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf)$/)) {
-        return next();
+    const now = Date.now();
+    if (now - timestamp > 60000 || timestamp - now > 60000) {
+        return res.status(403).json({ error: '请求已过期，请重试' });
     }
     
-    if (bannedIPs.has(ip)) {
-        console.log(`404伪装: IP ${ip} 被封禁`);
-        return res.status(404).type('text/plain').send('404 Not Found');
+    if (usedNonces.has(nonce)) {
+        return res.status(403).json({ error: '请求已被使用' });
     }
     
-    if (hardwareId && bannedHardware.has(hardwareId)) {
-        console.log(`404伪装: 硬件 ${hardwareId.substring(0, 16)}... 被封禁`);
-        return res.status(404).type('text/plain').send('404 Not Found');
+    const sortedKeys = Object.keys(data).sort();
+    const signStr = sortedKeys.map(k => `${k}=${data[k]}`).join('&');
+    const expectedSignature = crypto.createHmac('sha256', SECRET_KEY).update(signStr).digest('hex');
+    
+    if (signature !== expectedSignature) {
+        return res.status(403).json({ error: '签名无效' });
     }
     
+    usedNonces.set(nonce, now + 60000);
+    req.validatedData = data;
     next();
-});
+}
 
-app.post('/api/fingerprint/register', (req, res) => {
-    const { fingerprint, username } = req.body;
-    const ip = getRealIP(req);
-    
-    if (!fingerprint) {
-        return res.json({ success: false, error: '无法获取设备指纹' });
+// ========== 🔐 登录验证中间件 ==========
+async function loginRequired(req, res, next) {
+    const token = req.headers['x-auth-token'];
+    if (!token) {
+        return res.status(401).json({ error: '请先登录' });
     }
     
-    const hardwareId = generateHardwareId(fingerprint);
-    const isLoggedIn = username && username !== 'unknown' && username !== 'null' && username !== 'undefined';
-    const displayUser = isLoggedIn ? username : '未登录';
+    const users = await readJSON('users.json') || {};
+    let valid = false;
+    let currentUser = null;
+    let currentUserId = null;
+    let currentIsMuted = false;
     
-    console.log(`指纹注册: ${hardwareId.substring(0, 16)}... IP: ${ip} 用户: ${displayUser}`);
-    
-    if (!visitors.has(ip)) {
-        visitors.set(ip, {
-            ip: ip,
-            hardwareId: hardwareId,
-            firstSeen: new Date().toISOString(),
-            lastSeen: new Date().toISOString(),
-            visitCount: 1,
-            webgl: fingerprint.webgl || 'unknown',
-            username: isLoggedIn ? username : null
-        });
-        console.log(`新访客记录: IP ${ip}, 硬件 ${hardwareId.substring(0, 16)}...`);
-        saveVisitorsData();
-    } else {
-        const existing = visitors.get(ip);
-        existing.visitCount++;
-        existing.lastSeen = new Date().toISOString();
-        existing.hardwareId = hardwareId;
-        if (isLoggedIn) existing.username = username;
-        console.log(`更新访客: IP ${ip}, 访问次数 ${existing.visitCount}`);
-        saveVisitorsData();
-    }
-    
-    if (bannedHardware.has(hardwareId)) {
-        return res.json({ success: false, banned: true, error: '此设备已被封禁' });
-    }
-    
-    if (isLoggedIn) {
-        if (hardwareToUser.has(hardwareId)) {
-            const oldUser = hardwareToUser.get(hardwareId);
-            if (oldUser !== username) {
-                bannedHardware.add(hardwareId);
-                bannedUsers.add(oldUser);
-                bannedUsers.add(username);
-                saveBannedData();
-                return res.json({ success: false, banned: true, error: '检测到多个账号使用同一设备，已封禁' });
-            }
-        } else {
-            hardwareToUser.set(hardwareId, username);
+    for (const [name, user] of Object.entries(users)) {
+        if (user.userId === token && !user.banned) {
+            valid = true;
+            currentUser = name;
+            currentUserId = user.userId;
+            currentIsMuted = user.isMuted || false;
+            break;
         }
     }
     
-    res.json({ success: true, hardwareId: hardwareId });
-});
-
-app.get('/api/admin/banned', (req, res) => {
-    res.json({ bannedHardware: [...bannedHardware], bannedIPs: [...bannedIPs], bannedUsers: [...bannedUsers] });
-});
-
-app.get('/api/admin/visitors', (req, res) => {
-    const list = [];
-    for (const [ip, v] of visitors) {
-        list.push(v);
-    }
-    res.json(list);
-});
-
-app.post('/api/admin/banHardware', (req, res) => {
-    const { hardwareId } = req.body;
-    if (hardwareId) {
-        bannedHardware.add(hardwareId);
-        saveBannedData();
-        console.log(`封禁硬件: ${hardwareId}`);
-    }
-    res.json({ success: true });
-});
-
-app.post('/api/admin/unbanHardware', (req, res) => {
-    const { hardwareId } = req.body;
-    bannedHardware.delete(hardwareId);
-    saveBannedData();
-    res.json({ success: true });
-});
-
-app.post('/api/admin/banIP', (req, res) => {
-    const { ip } = req.body;
-    if (ip && ip !== 'unknown') {
-        bannedIPs.add(ip);
-        saveBannedData();
-        console.log(`封禁 IP: ${ip}`);
-    }
-    res.json({ success: true });
-});
-
-app.post('/api/admin/unbanIP', (req, res) => {
-    const { ip } = req.body;
-    bannedIPs.delete(ip);
-    saveBannedData();
-    res.json({ success: true });
-});
-
-app.post('/api/admin/banUserHardware', async (req, res) => {
-    const { username, hardwareId } = req.body;
-    bannedUsers.add(username);
-    if (hardwareId) bannedHardware.add(hardwareId);
-    saveBannedData();
-    
-    const users = await readJSON('users.json') || {};
-    if (users[username]) users[username].banned = true;
-    await writeJSON('users.json', users, '封禁用户');
-    res.json({ success: true });
-});
-
-app.post('/api/admin/toggleBan', async (req, res) => {
-    const { username } = req.body;
-    const users = await readJSON('users.json') || {};
-    if (users[username]) {
-        users[username].banned = !users[username].banned;
-        if (users[username].banned) bannedUsers.add(username);
-        else bannedUsers.delete(username);
-        await writeJSON('users.json', users, '封禁/解封用户');
-        saveBannedData();
-    }
-    res.json({ success: true });
-});
-
-app.post('/api/admin/toggleMute', async (req, res) => {
-    const { username } = req.body;
-    const users = await readJSON('users.json') || {};
-    if (users[username]) {
-        users[username].isMuted = !users[username].isMuted;
-        await writeJSON('users.json', users, '禁言/解除禁言');
-    }
-    res.json({ success: true });
-});
-
-app.post('/api/admin/approveScript', async (req, res) => {
-    const { id } = req.body;
-    const scripts = await readJSON('scripts.json') || [];
-    const idx = scripts.findIndex(s => s.id === id);
-    if (idx !== -1) {
-        scripts[idx].status = 'approved';
-        await writeJSON('scripts.json', scripts, '通过脚本');
-    }
-    res.json({ success: true });
-});
-
-app.post('/api/admin/rejectScript', async (req, res) => {
-    const { id } = req.body;
-    let scripts = await readJSON('scripts.json') || [];
-    scripts = scripts.filter(s => s.id !== id);
-    await writeJSON('scripts.json', scripts, '拒绝脚本');
-    res.json({ success: true });
-});
-
-app.get('/api/admin/users', async (req, res) => {
-    const users = await readJSON('users.json') || {};
-    const list = [];
-    for (const [name, info] of Object.entries(users)) {
-        list.push({
-            name: name,
-            role: info.role || 'user',
-            banned: info.banned || false,
-            isMuted: info.isMuted || false,
-            hardwareId: info.hardwareId || null,
-            registerIP: info.registerIP,
-            isBeauty: info.isBeauty || 'A',
-            usedCard: info.usedCard || null
-        });
-    }
-    res.json(list);
-});
-
-app.get('/api/admin/pending', async (req, res) => {
-    const scripts = await readJSON('scripts.json') || [];
-    res.json(scripts.filter(s => s.status === 'pending'));
-});
-
-app.get('/api/admin/chats', async (req, res) => {
-    const chats = await readJSON('chats.json') || [];
-    res.json(chats);
-});
-
-app.get('/api/admin/cards/usage', async (req, res) => {
-    try {
-        const logsPath = path.join(__dirname, 'card_verification_logs.json');
-        let logs = [];
-        if (fs.existsSync(logsPath)) {
-            logs = JSON.parse(fs.readFileSync(logsPath, 'utf8'));
-        }
-        
-        const cardStatus = VALID_CARDS.map(card => {
-            const usage = logs.find(log => log.cardCode === card);
-            return {
-                code: card,
-                level: BEAUTY_CARDS.includes(card) ? 'B级(靓号)' : 'A级(普通)',
-                isUsed: usedCards.has(card),
-                usedBy: usage?.username || null,
-                usedAt: usage?.timestamp || null,
-                usedIP: usage?.ip || null
-            };
-        });
-        
-        res.json(cardStatus);
-    } catch(e) {
-        res.status(500).json({ error: '获取卡密状态失败' });
-    }
-});
-
-app.post('/api/verify-card', (req, res) => {
-    const { cardCode, hardwareId, username } = req.body;
-    const ip = getRealIP(req);
-    
-    console.log(`卡密验证尝试: ${cardCode} 硬件: ${hardwareId?.substring(0, 16)}... IP: ${ip}`);
-    
-    if (!cardCode || typeof cardCode !== 'string') {
-        return res.status(400).json({ 
-            success: false, 
-            message: '请提供有效的卡密' 
-        });
+    if (token === 'LOVESS') {
+        valid = true;
+        currentUser = 'OWNER-康皓月';
+        currentUserId = 'LOVESS';
+        currentIsMuted = false;
     }
     
-    const trimmedCard = cardCode.trim().toUpperCase();
-    
-    if (!VALID_CARDS.includes(trimmedCard)) {
-        console.log(`卡密验证失败: ${trimmedCard} - 无效卡密`);
-        return res.status(401).json({ 
-            success: false, 
-            message: '卡密无效' 
-        });
+    if (!valid) {
+        return res.status(401).json({ error: '登录已失效，请重新登录' });
     }
     
-    if (usedCards.has(trimmedCard)) {
-        console.log(`卡密验证失败: ${trimmedCard} - 已被使用`);
-        return res.status(401).json({ 
-            success: false, 
-            message: '卡密已被使用，每个卡密只能使用一次' 
-        });
+    req.currentUser = currentUser;
+    req.currentUserId = currentUserId;
+    req.currentIsMuted = currentIsMuted;
+    next();
+}
+
+// ========== 🔐 管理员验证中间件 ==========
+function adminRequired(req, res, next) {
+    const adminKey = req.headers['x-admin-key'] || req.body.adminKey;
+    if (!adminKey || adminKey !== ADMIN_SECRET) {
+        return res.status(403).json({ error: '需要管理员权限' });
     }
-    
-    usedCards.add(trimmedCard);
-    saveUsedCards();
-    
-    const cardLevel = BEAUTY_CARDS.includes(trimmedCard) ? 'B' : 'A';
-    logCardVerification(trimmedCard, hardwareId, username, ip, 'verify');
-    
-    console.log(`卡密验证成功: ${trimmedCard} 等级: ${cardLevel === 'B' ? 'B级(靓号)' : 'A级(普通)'} 用户: ${username || '未登录'} IP: ${ip}`);
-    
-    res.json({ 
-        success: true, 
-        message: '卡密验证成功',
-        level: cardLevel
-    });
-});
+    next();
+}
 
-app.get('/api/admin/globalMuteStatus', async (req, res) => {
-    try {
-        const status = await readGitHubFile('whitelist.json');
-        let isMuted = false;
-        if (status === 'B') {
-            isMuted = true;
-        } else if (typeof status === 'object' && status !== null && status.globalMute === true) {
-            isMuted = true;
-        }
-        console.log(`[GitHub] 全局禁言状态查询: ${isMuted ? '开启(B)' : '关闭(A)'}`);
-        res.json({ enabled: isMuted });
-    } catch(e) {
-        console.error('读取全局禁言状态失败:', e);
-        res.json({ enabled: false });
-    }
-});
-
-app.post('/api/admin/toggleGlobalMute', async (req, res) => {
-    try {
-        let current = await readGitHubFile('whitelist.json');
-        let newStatus;
-        
-        if (current === 'A' || current === undefined || current === null) {
-            newStatus = 'B';
-        } else if (current === 'B') {
-            newStatus = 'A';
-        } else if (typeof current === 'object') {
-            newStatus = current.globalMute === true ? 'A' : 'B';
-        } else {
-            newStatus = 'A';
-        }
-        
-        await writeGitHubFile('whitelist.json', newStatus, `切换全局禁言: ${newStatus === 'B' ? '开启' : '关闭'}`);
-        console.log(`[GitHub] 全局禁言已切换: ${newStatus === 'B' ? '开启(B)' : '关闭(A)'}`);
-        res.json({ enabled: newStatus === 'B' });
-    } catch(e) {
-        console.error('切换全局禁言失败:', e);
-        res.status(500).json({ error: '操作失败: ' + e.message });
-    }
-});
-
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-const GITHUB_USER = process.env.GITHUB_USER || "liushumei11110-boop";
-const REPO_NAME = process.env.REPO_NAME || "lovess";
-const OWNER_PASSWORD = process.env.OWNER_PASSWORD || "khyzybnb666147";
-
+// ========== GitHub 读写函数 ==========
 async function readGitHubFile(file) {
     try {
         const url = `https://api.github.com/repos/${GITHUB_USER}/${REPO_NAME}/contents/${file}`;
@@ -487,9 +160,7 @@ async function writeGitHubFile(file, content, msg) {
             headers: { 'Authorization': `token ${GITHUB_TOKEN}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({ message: msg, content: base64, sha })
         });
-        if (!res.ok) {
-            throw new Error(`GitHub API 返回 ${res.status}`);
-        }
+        if (!res.ok) throw new Error(`GitHub API 返回 ${res.status}`);
         return true;
     } catch(e) { 
         console.error(`写入 GitHub ${file} 失败:`, e);
@@ -497,42 +168,111 @@ async function writeGitHubFile(file, content, msg) {
     }
 }
 
-async function readJSON(file) {
-    return await readGitHubFile(file);
+async function readJSON(file) { return await readGitHubFile(file); }
+async function writeJSON(file, content, msg) { return await writeGitHubFile(file, content, msg); }
+
+// ========== 封禁数据 ==========
+let bannedHardware = new Set();
+let bannedIPs = new Set();
+let bannedUsers = new Set();
+let hardwareToUser = new Map();
+let visitors = new Map();
+let usedCards = new Set();
+
+const VALID_CARDS = ["LOVESS-3827", "LOVESS-9156", "LOVESS-4732", "LOVESS-7481", "LOVESS-2069", "LOVESS-5688", "LOVESS-9459"];
+const BEAUTY_CARDS = ["LOVESS-3827", "LOVESS-9156", "LOVESS-4732", "LOVESS-7481", "LOVESS-2069"];
+
+function loadUsedCards() {
+    try {
+        const filePath = path.join(__dirname, 'used_cards.json');
+        if (fs.existsSync(filePath)) {
+            const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+            usedCards = new Set(data);
+        }
+    } catch(e) {}
 }
 
-async function writeJSON(file, content, msg) {
-    return await writeGitHubFile(file, content, msg);
+function saveUsedCards() {
+    try {
+        fs.writeFileSync(path.join(__dirname, 'used_cards.json'), JSON.stringify([...usedCards], null, 2));
+    } catch(e) {}
 }
 
+function loadBannedData() {
+    try {
+        const filePath = path.join(__dirname, 'banned.json');
+        if (fs.existsSync(filePath)) {
+            const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+            bannedHardware = new Set(data.bannedHardware || []);
+            bannedIPs = new Set(data.bannedIPs || []);
+            bannedUsers = new Set(data.bannedUsers || []);
+        }
+    } catch(e) {}
+}
+
+function saveBannedData() {
+    try {
+        fs.writeFileSync(path.join(__dirname, 'banned.json'), JSON.stringify({
+            bannedHardware: [...bannedHardware],
+            bannedIPs: [...bannedIPs],
+            bannedUsers: [...bannedUsers]
+        }, null, 2));
+    } catch(e) {}
+}
+
+function loadVisitorsData() {
+    try {
+        const filePath = path.join(__dirname, 'visitors.json');
+        if (fs.existsSync(filePath)) {
+            const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+            visitors.clear();
+            for (const v of data) {
+                visitors.set(v.ip, v);
+            }
+        }
+    } catch(e) {}
+}
+
+function saveVisitorsData() {
+    try {
+        const filePath = path.join(__dirname, 'visitors.json');
+        const data = [];
+        for (const [ip, v] of visitors) {
+            data.push(v);
+        }
+        fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+    } catch(e) {}
+}
+
+// ========== IP 封禁中间件 ==========
+app.use((req, res, next) => {
+    const ip = getRealIP(req);
+    const hardwareId = req.headers['x-hardware-id'];
+    
+    if (req.path.startsWith('/api/')) {
+        if (bannedIPs.has(ip)) {
+            return res.status(403).json({ error: 'IP已被封禁' });
+        }
+        if (hardwareId && bannedHardware.has(hardwareId)) {
+            return res.status(403).json({ error: '设备已被封禁' });
+        }
+    }
+    next();
+});
+
+// ========== 公开接口 ==========
 app.get('/api/debug/ip', (req, res) => {
     res.json({ realIP: getRealIP(req) });
 });
 
 app.get('/api/reviews', async (req, res) => {
-    const reviews = await readJSON('reviews.json');
-    res.json(reviews || []);
-});
-
-app.post('/api/review', async (req, res) => {
-    const { name, rating, text } = req.body;
     const reviews = await readJSON('reviews.json') || [];
-    reviews.unshift({ id: Date.now(), name, rating, text });
-    await writeJSON('reviews.json', reviews, '新评价');
-    res.json({ success: true });
-});
-
-app.post('/api/review/delete', async (req, res) => {
-    const { id } = req.body;
-    let reviews = await readJSON('reviews.json') || [];
-    reviews = reviews.filter(r => r.id !== id);
-    await writeJSON('reviews.json', reviews, '删除评价');
-    res.json({ success: true });
+    res.json(reviews);
 });
 
 app.get('/api/games', async (req, res) => {
     res.json([
-  { name: "luau", players: 6, link: "https://www.roblox.com/games/125462571840934", description: "luau游戏" },
+         { name: "luau", players: 6, link: "https://www.roblox.com/games/125462571840934", description: "luau游戏" },
   { name: "APN AIRPORT", players: 8, link: "https://www.roblox.com/games/84312471277990", description: "APN AIRPORT游戏" },
   { name: "Game 84312471277990", players: 1, link: "https://www.roblox.com/games/84312471277990", description: "Game 84312471277990游戏" },
   { name: "Game 139278387435422", players: 1, link: "https://www.roblox.com/games/139278387435422", description: "Game 139278387435422游戏" },
@@ -627,32 +367,6 @@ app.get('/api/games', async (req, res) => {
     ]);
 });
 
-app.get('/api/chats/:room', async (req, res) => {
-    const chats = await readJSON('chats.json');
-    res.json((chats || []).filter(c => c.room === req.params.room));
-});
-
-app.post('/api/chat', async (req, res) => {
-    const { user, text, room, userId, isBeauty } = req.body;
-    const chats = await readJSON('chats.json') || [];
-    chats.push({ id: Date.now(), user, text, time: new Date().toLocaleTimeString(), room, userId, isBeauty });
-    await writeJSON('chats.json', chats, '新消息');
-    res.json({ success: true });
-});
-
-app.get('/api/scripts', async (req, res) => {
-    const scripts = await readJSON('scripts.json');
-    res.json((scripts || []).filter(s => s.status === 'approved'));
-});
-
-app.post('/api/script/upload', async (req, res) => {
-    const { name, desc, author } = req.body;
-    const scripts = await readJSON('scripts.json') || [];
-    scripts.push({ id: Date.now(), name, desc, author, status: 'pending', time: new Date().toISOString() });
-    await writeJSON('scripts.json', scripts, '上传脚本');
-    res.json({ success: true });
-});
-
 app.get('/api/whitelist', async (req, res) => {
     const whitelist = await readJSON('whitelist.json');
     if (typeof whitelist === 'string') {
@@ -662,89 +376,29 @@ app.get('/api/whitelist', async (req, res) => {
     }
 });
 
-app.post('/api/whitelist/add', async (req, res) => {
-    let whitelist = await readJSON('whitelist.json');
-    if (typeof whitelist === 'string') {
-        whitelist = [];
-    }
-    if (!Array.isArray(whitelist)) whitelist = [];
-    const { name } = req.body;
-    if (!whitelist.includes(name)) whitelist.push(name);
-    await writeJSON('whitelist.json', whitelist, '添加白名单');
-    res.json({ success: true });
+app.get('/api/scripts', async (req, res) => {
+    const scripts = await readJSON('scripts.json');
+    res.json((scripts || []).filter(s => s.status === 'approved'));
 });
 
-app.post('/api/login', async (req, res) => {
-    const { username, password, hardwareId } = req.body;
-    const ip = getRealIP(req);
-    
-    console.log(`登录尝试: ${username} 来自 IP: ${ip}`);
-    
-    if (bannedIPs.has(ip)) return res.json({ success: false, error: 'IP已被封禁' });
-    if (bannedUsers.has(username)) return res.json({ success: false, error: '账号已被封禁' });
-    if (hardwareId && bannedHardware.has(hardwareId)) return res.json({ success: false, error: '此设备已被封禁' });
-    
-    if (username === 'OWNER-康皓月' && password === OWNER_PASSWORD) {
-        return res.json({ success: true, role: 'owner', userId: 'LOVESS', isBeauty: 'B' });
-    }
-    
-    const users = await readJSON('users.json');
-    if (users && users[username] && users[username].password === password && !users[username].banned) {
-        return res.json({ success: true, role: users[username].role || 'user', userId: users[username].userId, isBeauty: users[username].isBeauty || 'A' });
-    }
-    
-    res.json({ success: false, error: '用户名或密码错误' });
+app.get('/api/chats/:room', async (req, res) => {
+    const chats = await readJSON('chats.json');
+    res.json((chats || []).filter(c => c.room === req.params.room));
 });
 
-app.post('/api/register', async (req, res) => {
-    const { username, password, cardKey, hardwareId } = req.body;
-    const ip = getRealIP(req);
-    
-    console.log(`注册尝试: ${username} 来自 IP: ${ip} 卡密: ${cardKey || '无'}`);
-    
-    if (bannedIPs.has(ip)) return res.json({ success: false, error: 'IP已被封禁' });
-    if (hardwareId && bannedHardware.has(hardwareId)) return res.json({ success: false, error: '此设备已被封禁' });
-    
-    const users = await readJSON('users.json') || {};
-    if (users[username]) return res.json({ success: false, error: '用户名已存在' });
-    
-    let isBeauty = 'A';
-    let usedCard = null;
-    
-    if (cardKey && cardKey.trim() !== '') {
-        const trimmedCard = cardKey.trim().toUpperCase();
-        
-        if (!VALID_CARDS.includes(trimmedCard)) {
-            return res.json({ success: false, error: '卡密无效' });
+app.get('/api/admin/globalMuteStatus', async (req, res) => {
+    try {
+        const status = await readGitHubFile('whitelist.json');
+        let isMuted = false;
+        if (status === 'B') {
+            isMuted = true;
+        } else if (typeof status === 'object' && status !== null && status.globalMute === true) {
+            isMuted = true;
         }
-        
-        if (usedCards.has(trimmedCard)) {
-            return res.json({ success: false, error: '卡密已被使用' });
-        }
-        
-        if (BEAUTY_CARDS.includes(trimmedCard)) {
-            isBeauty = 'B';
-        }
-        
-        usedCards.add(trimmedCard);
-        usedCard = trimmedCard;
-        saveUsedCards();
-        logCardVerification(trimmedCard, hardwareId, username, ip, 'register');
-        
-        console.log(`注册使用卡密: ${trimmedCard} -> 用户: ${username} 等级: ${isBeauty === 'B' ? 'B级(靓号)' : 'A级(普通)'}`);
+        res.json({ enabled: isMuted });
+    } catch(e) {
+        res.json({ enabled: false });
     }
-    
-    const userId = 'U' + Date.now();
-    
-    users[username] = {
-        password, role: 'user', banned: false, isMuted: false,
-        userId, isBeauty, avatar: '', registerIP: ip, hardwareId,
-        createdAt: new Date().toISOString(),
-        usedCard: usedCard
-    };
-    await writeJSON('users.json', users, '新用户注册');
-    
-    res.json({ success: true, isBeauty: isBeauty, message: isBeauty === 'B' ? '注册成功！恭喜获得靓号用户身份！' : '注册成功！' });
 });
 
 app.get('/api/user/:username', async (req, res) => {
@@ -757,15 +411,449 @@ app.get('/api/user/:username', async (req, res) => {
     }
 });
 
+// ========== 🔐 需要防重放的接口 ==========
+
+app.post('/api/register', antiReplay, async (req, res) => {
+    const { username, password, cardKey, hardwareId } = req.validatedData;
+    const ip = getRealIP(req);
+    
+    if (!username || username.length < 2 || username.length > 20) {
+        return res.json({ success: false, error: '用户名长度需为2-20字符' });
+    }
+    if (!password || password.length < 4) {
+        return res.json({ success: false, error: '密码长度至少4位' });
+    }
+    
+    if (bannedIPs.has(ip)) {
+        return res.json({ success: false, error: 'IP已被封禁' });
+    }
+    
+    if (!checkRateLimit(`register_${ip}`, 3, 3600000)) {
+        return res.json({ success: false, error: '注册过于频繁' });
+    }
+    
+    const users = await readJSON('users.json') || {};
+    if (users[username]) {
+        return res.json({ success: false, error: '用户名已存在' });
+    }
+    
+    let isBeauty = 'A';
+    let usedCard = null;
+    if (cardKey && cardKey.trim()) {
+        const trimmedCard = cardKey.trim().toUpperCase();
+        if (!VALID_CARDS.includes(trimmedCard)) {
+            return res.json({ success: false, error: '卡密无效' });
+        }
+        if (usedCards.has(trimmedCard)) {
+            return res.json({ success: false, error: '卡密已被使用' });
+        }
+        if (BEAUTY_CARDS.includes(trimmedCard)) isBeauty = 'B';
+        usedCards.add(trimmedCard);
+        usedCard = trimmedCard;
+        saveUsedCards();
+    }
+    
+    const userId = 'U' + Date.now();
+    users[username] = {
+        password, role: 'user', banned: false, isMuted: false,
+        userId, isBeauty, avatar: '', registerIP: ip, hardwareId,
+        createdAt: new Date().toISOString(), usedCard
+    };
+    await writeJSON('users.json', users, `新用户注册: ${username}`);
+    res.json({ success: true, isBeauty });
+});
+
+app.post('/api/login', async (req, res) => {
+    const { username, password, hardwareId } = req.body;
+    const ip = getRealIP(req);
+    
+    if (!checkRateLimit(`login_${ip}`, 5, 60000)) {
+        return res.json({ success: false, error: '登录尝试过于频繁' });
+    }
+    
+    if (bannedIPs.has(ip)) {
+        return res.json({ success: false, error: 'IP被封禁' });
+    }
+    if (bannedUsers.has(username)) {
+        return res.json({ success: false, error: '账号已被封禁' });
+    }
+    
+    if (username === 'OWNER-康皓月' && password === OWNER_PASSWORD) {
+        return res.json({ success: true, role: 'owner', userId: 'LOVESS', isBeauty: 'B', token: 'LOVESS' });
+    }
+    
+    const users = await readJSON('users.json') || {};
+    if (users[username] && users[username].password === password && !users[username].banned) {
+        return res.json({ 
+            success: true, 
+            role: users[username].role || 'user', 
+            userId: users[username].userId, 
+            isBeauty: users[username].isBeauty || 'A',
+            token: users[username].userId
+        });
+    }
+    res.json({ success: false, error: '用户名或密码错误' });
+});
+
+app.post('/api/chat', loginRequired, antiReplay, async (req, res) => {
+    const { user, text, room, userId, isBeauty } = req.validatedData;
+    
+    if (!text || text.length > 200 || text.length < 1) {
+        return res.status(400).json({ error: '消息内容无效（1-200字符）' });
+    }
+    
+    if (userId !== req.currentUserId) {
+        return res.status(403).json({ error: '不能冒充他人' });
+    }
+    
+    if (req.currentIsMuted) {
+        return res.status(403).json({ error: '你已被禁言' });
+    }
+    
+    const globalMuteStatus = await readGitHubFile('whitelist.json');
+    const isGlobalMuted = globalMuteStatus === 'B' || globalMuteStatus?.globalMute === true;
+    if (isGlobalMuted && req.currentUserId !== 'LOVESS') {
+        return res.status(403).json({ error: '全局禁言中' });
+    }
+    
+    if (!checkRateLimit(`chat_${req.currentUserId}`, 10, 60000)) {
+        return res.status(429).json({ error: '发送消息过于频繁' });
+    }
+    
+    const chats = await readJSON('chats.json') || [];
+    chats.push({ 
+        id: Date.now(), 
+        user, 
+        text: text.substring(0, 200), 
+        time: new Date().toLocaleTimeString(), 
+        room, 
+        userId, 
+        isBeauty 
+    });
+    await writeJSON('chats.json', chats, '新消息');
+    res.json({ success: true });
+});
+
+app.post('/api/review', antiReplay, async (req, res) => {
+    const { name, rating, text } = req.validatedData;
+    const ip = getRealIP(req);
+    
+    if (!text || text.trim().length === 0) {
+        return res.status(400).json({ error: '评价内容不能为空' });
+    }
+    if (text.length > 500) {
+        return res.status(400).json({ error: '评价内容过长（最多500字）' });
+    }
+    
+    const validRating = parseInt(rating);
+    if (validRating && (validRating < 1 || validRating > 5)) {
+        return res.status(400).json({ error: '评分必须在1-5之间' });
+    }
+    
+    if (!checkRateLimit(`review_${ip}`, 3, 3600000)) {
+        return res.status(429).json({ error: '操作过于频繁' });
+    }
+    
+    const reviews = await readJSON('reviews.json') || [];
+    reviews.unshift({ 
+        id: Date.now(), 
+        name: name || '匿名', 
+        rating: validRating || 3, 
+        text: text.substring(0, 500),
+        ip: ip,
+        timestamp: new Date().toISOString()
+    });
+    await writeJSON('reviews.json', reviews, '新评价');
+    res.json({ success: true });
+});
+
+app.post('/api/script/upload', loginRequired, antiReplay, async (req, res) => {
+    const { name, desc, author } = req.validatedData;
+    
+    if (!name || name.length < 2 || name.length > 50) {
+        return res.status(400).json({ error: '脚本名称无效（2-50字符）' });
+    }
+    if (!desc || desc.length > 200) {
+        return res.status(400).json({ error: '脚本描述无效' });
+    }
+    
+    if (!checkRateLimit(`script_${req.currentUserId}`, 3, 3600000)) {
+        return res.status(429).json({ error: '上传过于频繁' });
+    }
+    
+    const scripts = await readJSON('scripts.json') || [];
+    scripts.push({ 
+        id: Date.now(), 
+        name: name.substring(0, 50), 
+        desc: desc.substring(0, 200), 
+        author: author || req.currentUser, 
+        status: 'pending', 
+        time: new Date().toISOString(),
+        userId: req.currentUserId
+    });
+    await writeJSON('scripts.json', scripts, `上传脚本: ${name}`);
+    res.json({ success: true });
+});
+
+app.post('/api/verify-card', antiReplay, async (req, res) => {
+    const { cardCode, hardwareId, username } = req.validatedData;
+    const ip = getRealIP(req);
+    
+    if (!cardCode || typeof cardCode !== 'string') {
+        return res.status(400).json({ success: false, message: '请提供有效的卡密' });
+    }
+    
+    const trimmedCard = cardCode.trim().toUpperCase();
+    
+    if (!VALID_CARDS.includes(trimmedCard)) {
+        return res.status(401).json({ success: false, message: '卡密无效' });
+    }
+    
+    if (usedCards.has(trimmedCard)) {
+        return res.status(401).json({ success: false, message: '卡密已被使用' });
+    }
+    
+    usedCards.add(trimmedCard);
+    saveUsedCards();
+    
+    const cardLevel = BEAUTY_CARDS.includes(trimmedCard) ? 'B' : 'A';
+    
+    res.json({ 
+        success: true, 
+        message: '卡密验证成功',
+        level: cardLevel
+    });
+});
+
+app.post('/api/fingerprint/register', async (req, res) => {
+    const { fingerprint, username } = req.body;
+    const ip = getRealIP(req);
+    
+    if (!fingerprint) {
+        return res.json({ success: false, error: '无法获取设备指纹' });
+    }
+    
+    function generateHardwareId(fingerprint) {
+        const stableFeatures = {
+            webgl: fingerprint.webgl,
+            cpuCores: fingerprint.cpuCores,
+            memory: fingerprint.memory,
+            screen: fingerprint.screen,
+            audio: fingerprint.audio,
+            fonts: fingerprint.fonts,
+            touchPoints: fingerprint.touchPoints,
+            platform: fingerprint.platform,
+            timezone: fingerprint.timezone
+        };
+        const str = JSON.stringify(stableFeatures);
+        return crypto.createHash('sha256').update(str).digest('hex');
+    }
+    
+    const hardwareId = generateHardwareId(fingerprint);
+    const isLoggedIn = username && username !== 'unknown' && username !== 'null' && username !== 'undefined';
+    
+    if (bannedHardware.has(hardwareId)) {
+        return res.json({ success: false, banned: true, error: '此设备已被封禁' });
+    }
+    
+    if (!visitors.has(ip)) {
+        visitors.set(ip, {
+            ip: ip,
+            hardwareId: hardwareId,
+            firstSeen: new Date().toISOString(),
+            lastSeen: new Date().toISOString(),
+            visitCount: 1,
+            webgl: fingerprint.webgl || 'unknown',
+            username: isLoggedIn ? username : null
+        });
+        saveVisitorsData();
+    } else {
+        const existing = visitors.get(ip);
+        existing.visitCount++;
+        existing.lastSeen = new Date().toISOString();
+        existing.hardwareId = hardwareId;
+        if (isLoggedIn) existing.username = username;
+        saveVisitorsData();
+    }
+    
+    if (isLoggedIn) {
+        if (hardwareToUser.has(hardwareId)) {
+            const oldUser = hardwareToUser.get(hardwareId);
+            if (oldUser !== username) {
+                bannedHardware.add(hardwareId);
+                bannedUsers.add(oldUser);
+                bannedUsers.add(username);
+                saveBannedData();
+                return res.json({ success: false, banned: true, error: '检测到多个账号使用同一设备，已封禁' });
+            }
+        } else {
+            hardwareToUser.set(hardwareId, username);
+        }
+    }
+    
+    res.json({ success: true, hardwareId: hardwareId });
+});
+
+// ========== 🔐 管理接口 ==========
+
+app.post('/api/admin/toggleGlobalMute', adminRequired, antiReplay, async (req, res) => {
+    try {
+        let current = await readGitHubFile('whitelist.json');
+        let newStatus = (current === 'B' || current?.globalMute === true) ? 'A' : 'B';
+        await writeGitHubFile('whitelist.json', newStatus, `切换全局禁言: ${newStatus === 'B' ? '开启' : '关闭'}`);
+        res.json({ enabled: newStatus === 'B' });
+    } catch(e) {
+        res.status(500).json({ error: '操作失败' });
+    }
+});
+
+app.post('/api/admin/toggleMute', adminRequired, antiReplay, async (req, res) => {
+    const { username } = req.validatedData;
+    const users = await readJSON('users.json') || {};
+    if (users[username]) {
+        users[username].isMuted = !users[username].isMuted;
+        await writeJSON('users.json', users, `禁言/解禁: ${username}`);
+    }
+    res.json({ success: true });
+});
+
+app.post('/api/admin/toggleBan', adminRequired, antiReplay, async (req, res) => {
+    const { username } = req.validatedData;
+    const users = await readJSON('users.json') || {};
+    if (users[username]) {
+        users[username].banned = !users[username].banned;
+        await writeJSON('users.json', users, `封禁/解封: ${username}`);
+    }
+    res.json({ success: true });
+});
+
+app.post('/api/admin/approveScript', adminRequired, antiReplay, async (req, res) => {
+    const { id } = req.validatedData;
+    const scripts = await readJSON('scripts.json') || [];
+    const idx = scripts.findIndex(s => s.id === id);
+    if (idx !== -1) {
+        scripts[idx].status = 'approved';
+        await writeJSON('scripts.json', scripts, `审核通过脚本: ${scripts[idx].name}`);
+    }
+    res.json({ success: true });
+});
+
+app.post('/api/admin/rejectScript', adminRequired, antiReplay, async (req, res) => {
+    const { id } = req.validatedData;
+    let scripts = await readJSON('scripts.json') || [];
+    scripts = scripts.filter(s => s.id !== id);
+    await writeJSON('scripts.json', scripts, '拒绝脚本');
+    res.json({ success: true });
+});
+
+app.post('/api/admin/banHardware', adminRequired, antiReplay, (req, res) => {
+    const { hardwareId } = req.validatedData;
+    if (hardwareId) bannedHardware.add(hardwareId);
+    saveBannedData();
+    res.json({ success: true });
+});
+
+app.post('/api/admin/unbanHardware', adminRequired, antiReplay, (req, res) => {
+    const { hardwareId } = req.validatedData;
+    bannedHardware.delete(hardwareId);
+    saveBannedData();
+    res.json({ success: true });
+});
+
+app.post('/api/admin/banIP', adminRequired, antiReplay, (req, res) => {
+    const { ip } = req.validatedData;
+    if (ip && ip !== 'unknown') bannedIPs.add(ip);
+    saveBannedData();
+    res.json({ success: true });
+});
+
+app.post('/api/admin/unbanIP', adminRequired, antiReplay, (req, res) => {
+    const { ip } = req.validatedData;
+    bannedIPs.delete(ip);
+    saveBannedData();
+    res.json({ success: true });
+});
+
+app.post('/api/admin/banUserHardware', adminRequired, antiReplay, async (req, res) => {
+    const { username, hardwareId } = req.validatedData;
+    bannedUsers.add(username);
+    if (hardwareId) bannedHardware.add(hardwareId);
+    saveBannedData();
+    
+    const users = await readJSON('users.json') || {};
+    if (users[username]) users[username].banned = true;
+    await writeJSON('users.json', users, '封禁用户');
+    res.json({ success: true });
+});
+
+app.post('/api/review/delete', adminRequired, antiReplay, async (req, res) => {
+    const { id } = req.validatedData;
+    let reviews = await readJSON('reviews.json') || [];
+    reviews = reviews.filter(r => r.id !== id);
+    await writeJSON('reviews.json', reviews, '删除评价');
+    res.json({ success: true });
+});
+
+app.post('/api/whitelist/add', adminRequired, antiReplay, async (req, res) => {
+    let whitelist = await readJSON('whitelist.json');
+    if (typeof whitelist === 'string') whitelist = [];
+    if (!Array.isArray(whitelist)) whitelist = [];
+    const { name } = req.validatedData;
+    if (!whitelist.includes(name)) whitelist.push(name);
+    await writeJSON('whitelist.json', whitelist, '添加白名单');
+    res.json({ success: true });
+});
+
+// ========== 管理面板 GET 接口 ==========
+app.get('/api/admin/users', adminRequired, async (req, res) => {
+    const users = await readJSON('users.json') || {};
+    const list = [];
+    for (const [name, info] of Object.entries(users)) {
+        list.push({
+            name: name,
+            role: info.role || 'user',
+            banned: info.banned || false,
+            isMuted: info.isMuted || false,
+            hardwareId: info.hardwareId || null,
+            registerIP: info.registerIP,
+            isBeauty: info.isBeauty || 'A',
+            usedCard: info.usedCard || null
+        });
+    }
+    res.json(list);
+});
+
+app.get('/api/admin/pending', adminRequired, async (req, res) => {
+    const scripts = await readJSON('scripts.json') || [];
+    res.json(scripts.filter(s => s.status === 'pending'));
+});
+
+app.get('/api/admin/chats', adminRequired, async (req, res) => {
+    const chats = await readJSON('chats.json') || [];
+    res.json(chats);
+});
+
+app.get('/api/admin/banned', adminRequired, (req, res) => {
+    res.json({ bannedHardware: [...bannedHardware], bannedIPs: [...bannedIPs], bannedUsers: [...bannedUsers] });
+});
+
+app.get('/api/admin/visitors', adminRequired, (req, res) => {
+    const list = [];
+    for (const [ip, v] of visitors) {
+        list.push(v);
+    }
+    res.json(list);
+});
+
+// ========== 启动服务器 ==========
+loadUsedCards();
 loadBannedData();
 loadVisitorsData();
-loadUsedCards();
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`LOVESS 后端已启动！`);
     console.log(`监听端口: ${PORT}`);
-    console.log(`已封禁 ${bannedHardware.size} 个硬件, ${bannedIPs.size} 个IP, ${bannedUsers.size} 个用户`);
-    console.log(`访客记录: ${visitors.size} 条`);
-    console.log(`卡密统计: 总共 ${VALID_CARDS.length} 个, 已使用 ${usedCards.size} 个`);
+    console.log(`防重放密钥: ${SECRET_KEY.substring(0, 10)}...`);
+    console.log(`管理员密钥: ${ADMIN_SECRET}`);
 });
